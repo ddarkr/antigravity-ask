@@ -1,0 +1,10 @@
+**/.DS_Store
+**/*.map
+src/**
+node_modules/**
+vitest.config.ts
+tsconfig.json
+bridge-payload.html
+*.ts
+*.log
+media/icon.svg

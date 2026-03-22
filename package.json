@@ -1,0 +1,16 @@
+{
+  "name": "antigravity-bridge",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "oxlint packages",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "oxlint": "^0.16.0",
+    "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

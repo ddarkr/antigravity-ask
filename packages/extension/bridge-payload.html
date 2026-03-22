@@ -1,0 +1,144 @@
+<script>
+  console.error("[Bridge] ⚡️ SCRIPT INJECTED AND RUNNING! ⚡️");
+
+  (function () {
+    "use strict";
+
+    const SERVER = window.__AG_BRIDGE_URL__ || "http://localhost:5820";
+    const POLL_INTERVAL = 1000;
+
+    // ── DOM Selectors (must match selectors.ts) ──
+    const SEL = {
+      CHAT_INPUT: ".antigravity-agent-side-panel textarea, .antigravity-agent-side-panel input[placeholder], textarea[placeholder*='Message']",
+      SEND_BUTTON: 'button[data-tooltip-id*="send"], button[aria-label*="Send"]',
+      RUN_BUTTON: "button.select-none.text-sm.font-medium",
+      RUN_BUTTON_TEXT: "Run",
+      RUN_BUTTON_ACTIVE_CLASS: "bg-primary",
+      CHAT_CONTENT: "#chat-content",
+      SEARCH_INPUT: ".jetski-fast-pick input",
+      SEARCH_RESULT: ".jetski-fast-pick .cursor-pointer",
+      THINKING_INDICATORS: ["Thinking", "Working"],
+    };
+
+    let lastContent = "";
+    let lastStatus = "idle";
+
+    // ── Helper Functions ──
+    function typeAndSend(text) {
+      const input = document.querySelector(SEL.CHAT_INPUT);
+      if (!input) {
+        console.warn("[Bridge] Chat input not found! Selectors might be wrong.");
+        return false;
+      }
+      input.focus();
+      const prototype = input.tagName === "TEXTAREA"
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      const nativeSetter = Object.getOwnPropertyDescriptor(prototype, "value").set;
+      nativeSetter.call(input, text);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+
+      setTimeout(() => {
+        const sendBtn = document.querySelector(SEL.SEND_BUTTON);
+        if (sendBtn) {
+          sendBtn.click();
+        } else {
+          input.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true,
+          }));
+        }
+      }, 100);
+      return true;
+    }
+
+    function clickRunButtons() {
+      const buttons = document.querySelectorAll(SEL.RUN_BUTTON);
+      buttons.forEach((btn) => {
+        if (btn.textContent?.trim() === SEL.RUN_BUTTON_TEXT && btn.classList.contains(SEL.RUN_BUTTON_ACTIVE_CLASS)) btn.click();
+      });
+    }
+
+    function clickAllowButtons() {
+      const buttons = document.querySelectorAll("button");
+      buttons.forEach((btn) => {
+        const text = btn.textContent?.trim() || "";
+        if (/^allow/i.test(text) || /^approve/i.test(text) || /^accept/i.test(text)) btn.click();
+      });
+    }
+
+    function clickNewChat() {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "l", code: "KeyL", keyCode: 76, metaKey: true, bubbles: true }));
+    }
+
+    function switchToChat(title) {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", code: "KeyP", keyCode: 80, metaKey: true, shiftKey: true, bubbles: true }));
+      setTimeout(() => {
+        const searchInput = document.querySelector(SEL.SEARCH_INPUT);
+        if (searchInput) {
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+          nativeSetter.call(searchInput, title);
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          setTimeout(() => {
+            const result = document.querySelector(SEL.SEARCH_RESULT);
+            if (result) result.click();
+          }, 300);
+        }
+      }, 200);
+    }
+
+    function detectStatus() {
+      const contentEl = document.querySelector(SEL.CHAT_CONTENT);
+      if (!contentEl) return "idle";
+      const text = contentEl.textContent || "";
+      for (const indicator of SEL.THINKING_INDICATORS) {
+        if (text.includes(indicator)) return "thinking";
+      }
+      const spinner = contentEl.querySelector('.animate-spin, .loading, [data-loading="true"]');
+      if (spinner) return "responding";
+      return "idle";
+    }
+
+    function getChatContent() {
+      const el = document.querySelector(SEL.CHAT_CONTENT);
+      return el ? el.textContent || "" : "";
+    }
+
+    function getChatTitle() {
+      const titleEl = document.querySelector('.conversation-title, [data-testid="chat-title"]');
+      return titleEl ? titleEl.textContent?.trim() || "Default" : "Default";
+    }
+
+    async function poll() {
+      try {
+        const currentStatus = detectStatus();
+        if (currentStatus !== lastStatus) {
+          lastStatus = currentStatus;
+          await fetch(`${SERVER}/update`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: currentStatus }) }).catch(() => {});
+        }
+        const content = getChatContent();
+        if (content && content !== lastContent) {
+          lastContent = content;
+          const title = getChatTitle();
+          await fetch(`${SERVER}/update`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content }) }).catch(() => {});
+        }
+
+        const res = await fetch(`${SERVER}/get_command`);
+        if (!res.ok) return;
+        const cmd = await res.json();
+        
+        if (cmd.text) typeAndSend(cmd.text);
+        if (cmd.auto_run) clickRunButtons();
+        if (cmd.auto_allow) clickAllowButtons();
+        if (cmd.start_new_chat) clickNewChat();
+        if (cmd.switch_chat) switchToChat(cmd.switch_chat);
+      } catch (err) {}
+    }
+
+    // Delay start slightly to bypass module loading issues and IDE startup
+    setTimeout(() => {
+      console.error("[Bridge] Starting poll loop to: ", SERVER);
+      setInterval(poll, POLL_INTERVAL);
+    }, 2000);
+
+  })();
+</script>

@@ -1,0 +1,76 @@
+name: Release Extension
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  publish-extension:
+    name: Publish VS Code extension
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/extension
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          if [[ -z "${VSCE_PAT}" ]]; then
+            echo "Missing required secret: VSCE_PAT" >&2
+            exit 1
+          fi
+          if [[ -z "${OVSX_PAT}" ]]; then
+            echo "Missing required secret: OVSX_PAT" >&2
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Verify extension version matches release tag
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TAG="${GITHUB_REF_NAME#v}"
+          if [[ "${PACKAGE_VERSION}" != "${RELEASE_TAG}" ]]; then
+            echo "Release tag ${GITHUB_REF_NAME} does not match packages/extension/package.json version ${PACKAGE_VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Package VSIX
+        run: pnpm package:ci
+
+      - name: Upload VSIX to GitHub Release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/extension/antigravity-bridge-extension.vsix
+
+      - name: Publish to Visual Studio Marketplace
+        run: pnpm publish:vsce
+
+      - name: Publish to Open VSX
+        run: pnpm publish:ovsx
