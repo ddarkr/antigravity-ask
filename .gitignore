@@ -18,3 +18,9 @@ yarn-error.log*
 
 # VS Code packaging output
 *.vsix
+
+# Build output
+packages/*/dist/
+
+# Temporary imported repos
+tmp-*/

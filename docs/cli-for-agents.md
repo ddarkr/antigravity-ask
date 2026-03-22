@@ -23,6 +23,13 @@ Before using the CLI, make sure:
 1. the Antigravity Bridge extension is running
 2. the bridge HTTP server is reachable
 3. the default port or override URL is correct
+4. the CLI has been built at least once if you are running from a fresh source checkout
+
+Build step for a fresh checkout:
+
+```bash
+pnpm --filter antigravity-chat build
+```
 
 Default bridge URL:
 

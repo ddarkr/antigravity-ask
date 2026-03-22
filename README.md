@@ -20,9 +20,10 @@ VS Code에서 extension을 실행할 때는 `packages/extension`을 Extension Ho
 
 ## CLI
 
-CLI는 `packages/cli`에서 빌드됩니다.
+CLI는 `packages/cli`에서 빌드됩니다. fresh clone 직후에는 `dist/`가 없으므로 아래 명령을 실행하기 전에 먼저 `pnpm --filter antigravity-chat build`를 실행해야 합니다.
 
 ```bash
+pnpm --filter antigravity-chat build
 node packages/cli/dist/cli.js --help
 ```
 
