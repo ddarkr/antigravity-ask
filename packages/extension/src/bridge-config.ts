@@ -32,16 +32,16 @@ export function getBridgeStatusPresentation(
   if (!config.enabled) {
     return {
       text: "$(circle-slash) Bridge: Disabled",
-      tooltip: `Antigravity Bridge is disabled — configured HTTP :${config.httpPort} | WS :${config.wsPort}`,
-      startMessage: `Antigravity Bridge is disabled — enable it to listen on HTTP :${config.httpPort} | WS :${config.wsPort}`,
-      toggleMessage: "Antigravity Bridge enablement is controlled by settings. Update `antigravity-bridge.enabled` and reload the window.",
+      tooltip: `Antigravity Ask Bridge is disabled — configured HTTP :${config.httpPort} | WS :${config.wsPort}`,
+      startMessage: `Antigravity Ask Bridge is disabled — enable it to listen on HTTP :${config.httpPort} | WS :${config.wsPort}`,
+      toggleMessage: "Antigravity Ask Bridge enablement is controlled by settings. Update `antigravity-bridge.enabled` and reload the window.",
     };
   }
 
   return {
     text: "$(zap) Bridge: Ready",
-    tooltip: `Antigravity Bridge — HTTP :${config.httpPort} | WS :${config.wsPort}`,
-    startMessage: `Antigravity Bridge running — HTTP :${config.httpPort} | WS :${config.wsPort}`,
-    toggleMessage: "Antigravity Bridge is enabled. Change `antigravity-bridge.enabled`, `httpPort`, or `wsPort` in settings and reload the window to apply updates.",
+    tooltip: `Antigravity Ask Bridge — HTTP :${config.httpPort} | WS :${config.wsPort}`,
+    startMessage: `Antigravity Ask Bridge running — HTTP :${config.httpPort} | WS :${config.wsPort}`,
+    toggleMessage: "Antigravity Ask Bridge is enabled. Change `antigravity-bridge.enabled`, `httpPort`, or `wsPort` in settings and reload the window to apply updates.",
   };
 }

@@ -1,6 +1,6 @@
-# Antigravity Bridge
+# Antigravity Ask Bridge
 
-Antigravity Bridge starts a local HTTP and WebSocket bridge inside the Antigravity extension host so external CLIs and coding agents can drive the Antigravity chat UI, inspect conversations, and read saved artifacts.
+Antigravity Ask Bridge starts a local HTTP and WebSocket bridge inside the Antigravity extension host so external CLIs and coding agents can drive the Antigravity chat UI, inspect conversations, and read saved artifacts.
 
 ## What it does
 
@@ -40,8 +40,8 @@ Expected response:
 
 ## Commands
 
-- `Antigravity Bridge: Show Server Status`
-- `Antigravity Bridge: Show Bridge Settings Info`
+- `Antigravity Ask Bridge: Show Server Status`
+- `Antigravity Ask Bridge: Show Bridge Settings Info`
 
 ## Settings
 
@@ -70,4 +70,4 @@ This extension is intended for local development and agent automation inside an 
 
 ## Packaging notes
 
-This package contains the VS Code extension only. The companion CLI package is published separately as `antigravity-bridge` and installs the `antigravity-bridge` executable.
+This package contains the VS Code extension only. The companion CLI package is published separately as `antigravity-ask` and installs the `antigravity-ask` executable.
