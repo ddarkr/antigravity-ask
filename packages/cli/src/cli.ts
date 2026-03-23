@@ -17,7 +17,7 @@ async function main(): Promise<void> {
 
   if (!command || command === "--help" || command === "-h") {
     console.log(`
-Antigravity Bridge CLI
+Antigravity Ask Bridge CLI
 
 Global Options:
   --url <baseUrl>                        Override the full bridge base URL

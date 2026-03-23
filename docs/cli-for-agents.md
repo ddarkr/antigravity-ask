@@ -1,12 +1,12 @@
-# Antigravity Bridge CLI for Coding Agents
+# Antigravity Ask Bridge CLI for Coding Agents
 
-This guide explains how to use `antigravity-bridge` from terminal-based coding agents.
+This guide explains how to use `antigravity-ask` from terminal-based coding agents.
 
 It is written for agents that need short, reliable instructions and copy-pasteable examples.
 
 ## What This CLI Does
 
-`antigravity-bridge` talks to the Antigravity Bridge HTTP server running inside the VS Code extension host.
+`antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the VS Code extension host.
 
 Use it when you want to:
 
@@ -20,7 +20,7 @@ Use it when you want to:
 
 Before using the CLI, make sure:
 
-1. the Antigravity Bridge extension is running
+1. the Antigravity Ask Bridge extension is running
 2. the bridge HTTP server is reachable
 3. the default port or override URL is correct
 4. the CLI has been built at least once if you are running from a fresh source checkout
@@ -28,7 +28,7 @@ Before using the CLI, make sure:
 Build step for a fresh checkout:
 
 ```bash
-pnpm --filter antigravity-bridge build
+pnpm --filter antigravity-ask build
 ```
 
 Default bridge URL:
@@ -49,9 +49,9 @@ The CLI resolves the base URL in this order:
 Examples:
 
 ```bash
-antigravity-bridge --url http://127.0.0.1:5820 ping
-antigravity-bridge --http-port 5820 ping
-AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-bridge ping
+antigravity-ask --url http://127.0.0.1:5820 ping
+antigravity-ask --http-port 5820 ping
+AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-ask ping
 ```
 
 ## Golden Path
@@ -59,15 +59,15 @@ AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-bridge ping
 Start with this flow:
 
 ```bash
-antigravity-bridge ping
-antigravity-bridge ask "Summarize the current bridge architecture."
+antigravity-ask ping
+antigravity-ask ask "Summarize the current bridge architecture."
 ```
 
 If you need asynchronous control:
 
 ```bash
-antigravity-bridge send "Open a new chat and say hello"
-antigravity-bridge conversation <conversation_id>
+antigravity-ask send "Open a new chat and say hello"
+antigravity-ask conversation <conversation_id>
 ```
 
 ## Commands
@@ -77,7 +77,7 @@ antigravity-bridge conversation <conversation_id>
 Checks whether the bridge server is reachable.
 
 ```bash
-antigravity-bridge ping
+antigravity-ask ping
 ```
 
 Expected output: JSON to stdout.
@@ -85,7 +85,7 @@ Expected output: JSON to stdout.
 Alias:
 
 ```bash
-antigravity-bridge status
+antigravity-ask status
 ```
 
 ### `ask <text>`
@@ -93,7 +93,7 @@ antigravity-bridge status
 Sends a prompt and waits until the bridge decides the conversation is finished.
 
 ```bash
-antigravity-bridge ask "List the supported bridge actions."
+antigravity-ask ask "List the supported bridge actions."
 ```
 
 Behavior:
@@ -114,7 +114,7 @@ Important:
 Starts a headless prompt without waiting for completion.
 
 ```bash
-antigravity-bridge send "Create a new conversation about release notes"
+antigravity-ask send "Create a new conversation about release notes"
 ```
 
 Expected output: stdout includes a status line followed by JSON, usually including `conversation_id`.
@@ -126,7 +126,7 @@ Use `send` when you want to poll or inspect the conversation yourself.
 Reads the full conversation payload.
 
 ```bash
-antigravity-bridge conversation <conversation_id>
+antigravity-ask conversation <conversation_id>
 ```
 
 Expected output: JSON to stdout.
@@ -134,7 +134,7 @@ Expected output: JSON to stdout.
 Alias:
 
 ```bash
-antigravity-bridge chat <conversation_id>
+antigravity-ask chat <conversation_id>
 ```
 
 ### `artifacts`
@@ -142,7 +142,7 @@ antigravity-bridge chat <conversation_id>
 Lists known conversation or artifact entries.
 
 ```bash
-antigravity-bridge artifacts
+antigravity-ask artifacts
 ```
 
 Expected output: JSON to stdout.
@@ -150,7 +150,7 @@ Expected output: JSON to stdout.
 Alias:
 
 ```bash
-antigravity-bridge conversations
+antigravity-ask conversations
 ```
 
 ### `artifact <convoId> <path>`
@@ -158,7 +158,7 @@ antigravity-bridge conversations
 Reads a specific artifact file.
 
 ```bash
-antigravity-bridge artifact <conversation_id> output.md
+antigravity-ask artifact <conversation_id> output.md
 ```
 
 Expected output: raw file contents to stdout.
@@ -168,9 +168,9 @@ Expected output: raw file contents to stdout.
 Runs a bridge action.
 
 ```bash
-antigravity-bridge action start_new_chat
-antigravity-bridge action focus_chat
-antigravity-bridge action allow
+antigravity-ask action start_new_chat
+antigravity-ask action focus_chat
+antigravity-ask action allow
 ```
 
 Supported action names from the shared contract:
@@ -188,7 +188,7 @@ Expected output: JSON to stdout.
 Legacy alias:
 
 ```bash
-antigravity-bridge new-chat
+antigravity-ask new-chat
 ```
 
 ## Advanced: Headless Chat With Explicit Model Selection
@@ -302,7 +302,7 @@ The root README should eventually include a short pointer like this:
 ## For AI agents
 
 If you want to drive Antigravity from a coding agent, start with `docs/cli-for-agents.md`.
-Use `antigravity-bridge ping` to verify connectivity before calling `ask` or `send`.
+Use `antigravity-ask ping` to verify connectivity before calling `ask` or `send`.
 ```
 
 ## Non-Goals

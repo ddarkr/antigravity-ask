@@ -1,6 +1,6 @@
-# Antigravity Bridge - Agents Context
+# Antigravity Ask Bridge - Agents Context
 
-이 문서는 다른 AI 에이전트나 미래의 작업자가 Antigravity Bridge 프로젝트를 유지보수하거나 이어서 작업할 때, 프로젝트의 핵심 맥락(Context)을 파악할 수 있도록 작성된 가이드입니다.
+이 문서는 다른 AI 에이전트나 미래의 작업자가 Antigravity Ask Bridge 프로젝트를 유지보수하거나 이어서 작업할 때, 프로젝트의 핵심 맥락(Context)을 파악할 수 있도록 작성된 가이드입니다.
 
 ## 🚀 프로젝트 개요
 
@@ -24,7 +24,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 모노레포 구조: `pnpm-workspace.yaml`로 관리되며 현재 활성 패키지는 `packages/extension`과 `packages/cli`입니다.
 
 - `packages/extension` — VS Code 익스텐션 호스트. 브릿지 서버, SDK-backed bridge services, 아티팩트 접근을 담당합니다.
-- `packages/cli` — publishable CLI 및 공유 contracts/client 패키지. `antigravity-bridge` 패키지명과 `antigravity-bridge` 실행 파일을 제공합니다.
+- `packages/cli` — publishable CLI 및 공유 contracts/client 패키지. `antigravity-ask` 패키지명과 `antigravity-ask` 실행 파일을 제공합니다.
 
 ### 소스 파일 목록
 
@@ -34,7 +34,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 | `packages/extension/src/server.ts`    | Hono 기반 HTTP 서버(포트 `5820`) + WebSocket 서버(포트 `5821`) 정의. 모든 REST API 라우팅 |
 | `packages/extension/src/bridge-services.ts` | SDK-backed conversation/action/monitoring services와 legacy `/send` fallback 구현 |
 | `packages/extension/src/artifacts.ts` | `~/.gemini/antigravity/brain/` 하위의 대화 아티팩트 파일을 읽는 유틸 함수                 |
-| `packages/cli/src/cli.ts`             | 터미널에서 사용하는 CLI 엔트리. `antigravity-bridge <command>` 형태                         |
+| `packages/cli/src/cli.ts`             | 터미널에서 사용하는 CLI 엔트리. `antigravity-ask <command>` 형태                         |
 | `packages/cli/src/contracts/*`        | 브릿지 API 경로, 액션, 대화 응답 타입/헬퍼 등 공유 계약                                      |
 | `packages/cli/src/client/*`           | 브릿지 HTTP 클라이언트와 `ask` polling 유틸리티                                              |
 
@@ -84,23 +84,23 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 
 ## 💻 CLI 사용법
 
-CLI는 `packages/cli` 패키지에서 빌드/배포됩니다. 개발 중에는 `node packages/cli/dist/cli.js` 또는 `antigravity-bridge` 명령어로 사용할 수 있습니다.
+CLI는 `packages/cli` 패키지에서 빌드/배포됩니다. 개발 중에는 `node packages/cli/dist/cli.js` 또는 `antigravity-ask` 명령어로 사용할 수 있습니다.
 
 환경변수 `AG_BRIDGE_URL`로 서버 주소 변경 가능 (기본값: `http://localhost:5820`).
 
 ```
-antigravity-bridge ask <text>           # headless prompt 전송 후 에이전트 응답 완료까지 대기, 결과 출력
-antigravity-bridge send <text>          # headless prompt 전송 (비동기, conversation_id 반환)
-antigravity-bridge ping                 # 서버 상태 확인
-antigravity-bridge action <type>        # 액션 실행 (start_new_chat, focus_chat, allow, reject_step, terminal_run)
-antigravity-bridge artifacts            # 대화 아티팩트 목록 조회
-antigravity-bridge conversation <id>    # 특정 대화 내용 조회
-antigravity-bridge artifact <id> <path> # 특정 아티팩트 파일 읽기
+antigravity-ask ask <text>           # headless prompt 전송 후 에이전트 응답 완료까지 대기, 결과 출력
+antigravity-ask send <text>          # headless prompt 전송 (비동기, conversation_id 반환)
+antigravity-ask ping                 # 서버 상태 확인
+antigravity-ask action <type>        # 액션 실행 (start_new_chat, focus_chat, allow, reject_step, terminal_run)
+antigravity-ask artifacts            # 대화 아티팩트 목록 조회
+antigravity-ask conversation <id>    # 특정 대화 내용 조회
+antigravity-ask artifact <id> <path> # 특정 아티팩트 파일 읽기
 
 # Aliases
-antigravity-bridge status               # ping 별칭
-antigravity-bridge new-chat             # action start_new_chat 별칭
-antigravity-bridge conversations        # artifacts 별칭
+antigravity-ask status               # ping 별칭
+antigravity-ask new-chat             # action start_new_chat 별칭
+antigravity-ask conversations        # artifacts 별칭
 ```
 
 ### `ask` 커맨드 동작 원리
