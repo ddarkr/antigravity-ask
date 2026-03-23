@@ -70,4 +70,4 @@ This extension is intended for local development and agent automation inside an 
 
 ## Packaging notes
 
-This package contains the VS Code extension only. The companion CLI package is published separately as `antigravity-chat` and installs the `antigravity-bridge` executable.
+This package contains the VS Code extension only. The companion CLI package is published separately as `antigravity-bridge` and installs the `antigravity-bridge` executable.

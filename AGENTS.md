@@ -24,7 +24,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 모노레포 구조: `pnpm-workspace.yaml`로 관리되며 현재 활성 패키지는 `packages/extension`과 `packages/cli`입니다.
 
 - `packages/extension` — VS Code 익스텐션 호스트. 브릿지 서버, SDK-backed bridge services, 아티팩트 접근을 담당합니다.
-- `packages/cli` — publishable CLI 및 공유 contracts/client 패키지. `antigravity-chat` 패키지명과 `antigravity-bridge` 실행 파일을 제공합니다.
+- `packages/cli` — publishable CLI 및 공유 contracts/client 패키지. `antigravity-bridge` 패키지명과 `antigravity-bridge` 실행 파일을 제공합니다.
 
 ### 소스 파일 목록
 

@@ -5,14 +5,14 @@ Antigravity IDE 안에 브릿지 서버를 띄워서 외부 CLI나 다른 에이
 ## Packages
 
 - `packages/extension` — VS Code extension host. Hono HTTP/WebSocket 서버, SDK-backed bridge services, artifact access를 담당합니다.
-- `packages/cli` — publishable CLI package. 패키지명은 `antigravity-chat`, 실행 파일은 `antigravity-bridge`입니다.
+- `packages/cli` — publishable CLI package. 패키지명은 `antigravity-bridge`, 실행 파일은 `antigravity-bridge`입니다.
 
 ## Development
 
 ```bash
 pnpm install
 
-pnpm --filter antigravity-chat build
+pnpm --filter antigravity-bridge build
 pnpm --filter antigravity-bridge-extension build
 ```
 
@@ -20,10 +20,10 @@ VS Code에서 extension을 실행할 때는 `packages/extension`을 Extension Ho
 
 ## CLI
 
-CLI는 `packages/cli`에서 빌드됩니다. fresh clone 직후에는 `dist/`가 없으므로 아래 명령을 실행하기 전에 먼저 `pnpm --filter antigravity-chat build`를 실행해야 합니다.
+CLI는 `packages/cli`에서 빌드됩니다. fresh clone 직후에는 `dist/`가 없으므로 아래 명령을 실행하기 전에 먼저 `pnpm --filter antigravity-bridge build`를 실행해야 합니다.
 
 ```bash
-pnpm --filter antigravity-chat build
+pnpm --filter antigravity-bridge build
 pnpm exec antigravity-bridge --help
 ```
 

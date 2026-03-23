@@ -28,7 +28,7 @@ Before using the CLI, make sure:
 Build step for a fresh checkout:
 
 ```bash
-pnpm --filter antigravity-chat build
+pnpm --filter antigravity-bridge build
 ```
 
 Default bridge URL:
