@@ -31,6 +31,16 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+
+      - name: Show publish environment
+        run: |
+          node -v
+          npm -v
+          npm config get registry
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
