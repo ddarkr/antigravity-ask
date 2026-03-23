@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      antigravity-bridge:
+      antigravity-ask:
         specifier: workspace:*
         version: link:packages/cli
     devDependencies:
@@ -36,7 +36,7 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.0
         version: 1.19.11(hono@4.12.8)
-      antigravity-bridge:
+      antigravity-ask:
         specifier: workspace:*
         version: link:../cli
       antigravity-sdk:

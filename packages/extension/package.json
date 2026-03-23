@@ -1,7 +1,7 @@
 {
   "name": "antigravity-bridge-extension",
-  "displayName": "Antigravity Bridge",
-  "description": "Automate Antigravity IDE — REST API, CLI for coding agents",
+  "displayName": "Antigravity Ask Bridge",
+  "description": "Automate Antigravity IDE — REST API and the antigravity-ask CLI for coding agents",
   "version": "0.1.0",
   "publisher": "antigravity-bridge",
   "license": "MIT",
@@ -36,15 +36,15 @@
     "commands": [
       {
         "command": "antigravity-bridge.start",
-        "title": "Antigravity Bridge: Show Server Status"
+        "title": "Antigravity Ask Bridge: Show Server Status"
       },
       {
         "command": "antigravity-bridge.toggle",
-        "title": "Antigravity Bridge: Show Bridge Settings Info"
+        "title": "Antigravity Ask Bridge: Show Bridge Settings Info"
       }
     ],
     "configuration": {
-      "title": "Antigravity Bridge",
+      "title": "Antigravity Ask Bridge",
       "properties": {
         "antigravity-bridge.httpPort": {
           "type": "number",
@@ -59,7 +59,7 @@
         "antigravity-bridge.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable the Antigravity Bridge server when the extension activates"
+          "description": "Enable the Antigravity Ask Bridge server when the extension activates"
         }
       }
     }
@@ -83,7 +83,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "antigravity-bridge": "workspace:*",
+    "antigravity-ask": "workspace:*",
     "antigravity-sdk": "^1.7.0",
     "hono": "^4.7.0",
     "sql.js": "^1.14.1",

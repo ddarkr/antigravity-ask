@@ -1,12 +1,12 @@
 {
-  "name": "antigravity-bridge",
+  "name": "antigravity-ask",
   "version": "0.1.0",
   "description": "CLI and shared client utilities for Antigravity chat automation",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "antigravity-bridge": "./dist/cli.js"
+    "antigravity-ask": "./dist/cli.js"
   },
   "exports": {
     ".": {
