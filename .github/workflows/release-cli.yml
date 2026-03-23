@@ -1,10 +1,9 @@
 name: Release CLI
 
 on:
-  push:
-    tags:
-      - cli-v*
-  workflow_dispatch:
+  release:
+    types:
+      - published
 
 permissions:
   contents: read
@@ -41,7 +40,7 @@ jobs:
       - name: Verify CLI version matches release tag
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          RELEASE_TAG="${GITHUB_REF_NAME#cli-v}"
+          RELEASE_TAG="${GITHUB_REF_NAME#v}"
           if [[ "${PACKAGE_VERSION}" != "${RELEASE_TAG}" ]]; then
             echo "Release tag ${GITHUB_REF_NAME} does not match packages/cli/package.json version ${PACKAGE_VERSION}" >&2
             exit 1
