@@ -1,5 +1,5 @@
 {
-  "name": "antigravity-bridge",
+  "name": "antigravity-bridge-workspace",
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
@@ -7,7 +7,7 @@
     "test": "pnpm -r test"
   },
   "dependencies": {
-    "antigravity-chat": "workspace:*"
+    "antigravity-bridge": "workspace:*"
   },
   "devDependencies": {
     "oxlint": "^0.16.0",

@@ -83,7 +83,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "antigravity-chat": "workspace:*",
+    "antigravity-bridge": "workspace:*",
     "antigravity-sdk": "^1.7.0",
     "hono": "^4.7.0",
     "sql.js": "^1.14.1",
