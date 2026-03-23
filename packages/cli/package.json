@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "CLI and shared client utilities for Antigravity chat automation",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddarkr/antigravity-ask.git"
+  },
+  "homepage": "https://github.com/ddarkr/antigravity-ask",
+  "bugs": {
+    "url": "https://github.com/ddarkr/antigravity-ask/issues"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {

@@ -9,11 +9,11 @@
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/professional-ALFIE/antigravity-cli.git"
+    "url": "git+https://github.com/ddarkr/antigravity-ask.git"
   },
-  "homepage": "https://github.com/professional-ALFIE/antigravity-cli",
+  "homepage": "https://github.com/ddarkr/antigravity-ask",
   "bugs": {
-    "url": "https://github.com/professional-ALFIE/antigravity-cli/issues"
+    "url": "https://github.com/ddarkr/antigravity-ask/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
