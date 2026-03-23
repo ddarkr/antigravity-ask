@@ -1,0 +1,68 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - cli-v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-cli:
+    name: Publish npm CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: packages/cli
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          if [[ -z "${NPM_TOKEN}" ]]; then
+            echo "Missing required secret: NPM_TOKEN" >&2
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Verify CLI version matches release tag
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          RELEASE_TAG="${GITHUB_REF_NAME#cli-v}"
+          if [[ "${PACKAGE_VERSION}" != "${RELEASE_TAG}" ]]; then
+            echo "Release tag ${GITHUB_REF_NAME} does not match packages/cli/package.json version ${PACKAGE_VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Run CLI tests
+        run: pnpm test
+
+      - name: Build CLI
+        run: pnpm build
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
