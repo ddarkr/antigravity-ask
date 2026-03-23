@@ -61,6 +61,10 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      - name: Build workspace CLI dependency
+        run: pnpm --filter antigravity-ask build
+        working-directory: .
+
       - name: Package VSIX
         run: pnpm package:ci
 
