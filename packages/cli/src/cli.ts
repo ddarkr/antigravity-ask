@@ -25,7 +25,7 @@ Global Options:
 
 Commands:
   ask <text>                             Send a prompt and wait until the agent finishes to print the response
-  send <text>                            Send a prompt to the chat (async, returns conversation_id)
+  send <text>                            Start a headless chat prompt (async, returns conversation_id)
   ping                                   Check server status
   action <type>                          Execute an action (e.g., start_new_chat, focus_chat, allow, reject_step)
   artifacts                              List conversations/artifacts

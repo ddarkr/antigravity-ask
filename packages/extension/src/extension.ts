@@ -10,6 +10,13 @@ import {
 
 let bridge: BridgeServers | null = null;
 
+interface PortInspect {
+  workspaceValue?: number;
+  workspaceFolderValue?: number;
+  globalValue?: number;
+  defaultValue?: number;
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   restoreLegacyPatchedFiles();
 
@@ -71,12 +78,53 @@ function restoreBackupFile(
 
 function loadBridgeConfig(): BridgeConfig {
   const config = vscode.workspace.getConfiguration("antigravity-bridge");
+  const inspectedHttpPort = config.inspect<number>("httpPort") as PortInspect | undefined;
+  const inspectedWsPort = config.inspect<number>("wsPort") as PortInspect | undefined;
+
+  const httpPort = inspectedHttpPort?.workspaceValue
+    ?? inspectedHttpPort?.workspaceFolderValue
+    ?? inspectedHttpPort?.globalValue
+    ?? inspectedHttpPort?.defaultValue
+    ?? 5820;
+  const wsPort = inspectedWsPort?.workspaceValue
+    ?? inspectedWsPort?.workspaceFolderValue
+    ?? inspectedWsPort?.globalValue
+    ?? inspectedWsPort?.defaultValue
+    ?? 5821;
+  const derivedPorts = deriveWorkspaceDefaultPorts();
 
   return createBridgeConfig({
     enabled: config.get<boolean>("enabled"),
-    httpPort: config.get<number>("httpPort") ?? 5820,
-    wsPort: config.get<number>("wsPort") ?? 5821,
+    httpPort: hasExplicitPortOverride(inspectedHttpPort) ? httpPort : derivedPorts.httpPort,
+    wsPort: hasExplicitPortOverride(inspectedWsPort) ? wsPort : derivedPorts.wsPort,
   });
+}
+
+function hasExplicitPortOverride(
+  inspected: PortInspect | undefined,
+): boolean {
+  return inspected?.workspaceValue !== undefined
+    || inspected?.workspaceFolderValue !== undefined
+    || inspected?.globalValue !== undefined;
+}
+
+function deriveWorkspaceDefaultPorts(): { httpPort: number; wsPort: number } {
+  const primaryFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "antigravity-bridge";
+  const isPreferredWorkspace = primaryFolder.includes("antigravity-cli-access");
+  if (isPreferredWorkspace) {
+    return { httpPort: 5820, wsPort: 5821 };
+  }
+
+  let hash = 0;
+  for (const char of primaryFolder) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 200;
+  }
+
+  const httpPort = 5900 + hash;
+  return {
+    httpPort,
+    wsPort: httpPort + 1,
+  };
 }
 
 function registerStatusBar(

@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      antigravity-chat:
+        specifier: workspace:*
+        version: link:packages/cli
     devDependencies:
       oxlint:
         specifier: ^0.16.0
@@ -41,6 +45,9 @@ importers:
       hono:
         specifier: ^4.7.0
         version: 4.12.8
+      sql.js:
+        specifier: ^1.14.1
+        version: 1.14.1
       ws:
         specifier: ^8.18.0
         version: 8.19.0

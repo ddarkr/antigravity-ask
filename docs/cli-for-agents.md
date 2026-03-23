@@ -111,7 +111,7 @@ Important:
 
 ### `send <text>`
 
-Sends a prompt without waiting for completion.
+Starts a headless prompt without waiting for completion.
 
 ```bash
 antigravity-bridge send "Create a new conversation about release notes"
@@ -210,7 +210,7 @@ Notes:
 
 - `/chat` accepts `text` and an optional `model`
 - when `model` is omitted, the server defaults to `Models.GEMINI_FLASH` (`1018`)
-- the current repository exposes model ids such as `GEMINI_FLASH`, `GEMINI_PRO_LOW`, and `GEMINI_PRO_HIGH` in `packages/extension/src/ls-bridge.ts`
+- the current repository uses model ids re-exported by `antigravity-sdk`
 - this is the closest current equivalent to an explicit Gemini fast-style request in this project
 
 ## Output Rules

@@ -4,6 +4,10 @@ import {
   Models,
   type ModelId,
 } from "antigravity-sdk";
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import * as vscode from "vscode";
 import {
   collectTrajectoryIds,
@@ -17,6 +21,7 @@ import {
 } from "./server-support";
 
 type CommandExecutor = <T = unknown>(command: string, ...args: unknown[]) => Promise<T>;
+const execFileAsync = promisify(execFile);
 
 interface CascadeSummary {
   trajectoryId?: string;
@@ -76,12 +81,16 @@ export interface BridgeServices {
 }
 
 class SdkRuntime {
-  private readonly sdk: AntigravitySDK;
+  private sdk: AntigravitySDK;
+  private readonly context: vscode.ExtensionContext;
   private sdkReady: Promise<void> | null = null;
   private initialized = false;
   private initError: Error | null = null;
+  private workspaceConnectionAligned = false;
+  private candidateConnections: WorkspaceLsConnection[] = [];
 
   constructor(context: vscode.ExtensionContext) {
+    this.context = context;
     this.sdk = new AntigravitySDK(context);
   }
 
@@ -102,7 +111,37 @@ class SdkRuntime {
     }
 
     await this.sdkReady;
+    await this.alignWorkspaceConnection();
     return this.sdk;
+  }
+
+  async reset(): Promise<AntigravitySDK> {
+    this.sdk.dispose();
+    this.sdk = new AntigravitySDK(this.context);
+    this.sdkReady = null;
+    this.initialized = false;
+    this.initError = null;
+    this.workspaceConnectionAligned = false;
+    this.candidateConnections = [];
+    return this.ready();
+  }
+
+  private async alignWorkspaceConnection(): Promise<void> {
+    if (this.workspaceConnectionAligned) {
+      return;
+    }
+
+    this.candidateConnections = await discoverWorkspaceLsConnections(this.context);
+    const [connection] = this.candidateConnections;
+    if (connection) {
+      this.sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
+    }
+
+    this.workspaceConnectionAligned = true;
+  }
+
+  getCandidateConnections(): WorkspaceLsConnection[] {
+    return [...this.candidateConnections];
   }
 
   getState(): { initialized: boolean; error: Error | null } {
@@ -120,29 +159,61 @@ class AntigravitySdkConversationService implements ConversationService {
   ) {}
 
   async createHeadlessConversation(text: string, model?: ModelId): Promise<string | null> {
-    const sdk = await this.runtime.ready();
-    const startResponse = await sdk.ls.rawRPC("StartCascade", { source: 0 }) as {
-      cascadeId?: string;
-    };
-    const cascadeId = startResponse.cascadeId ?? null;
+    try {
+      return await this.createHeadlessConversationOnce(text, model, false);
+    } catch (error) {
+      if (!isInvalidCsrfError(error)) {
+        throw error;
+      }
 
-    if (!cascadeId) {
-      return null;
+      return this.createHeadlessConversationOnce(text, model, true);
+    }
+  }
+
+  private async createHeadlessConversationOnce(
+    text: string,
+    model: ModelId | undefined,
+    forceRefresh: boolean,
+  ): Promise<string | null> {
+    const sdk = forceRefresh
+      ? await this.runtime.reset()
+      : await this.runtime.ready();
+    const candidates = this.runtime.getCandidateConnections();
+    const errors: Error[] = [];
+
+    for (const connection of candidates.length > 0 ? candidates : [null]) {
+      if (connection) {
+        sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
+      }
+
+      try {
+        const startResponse = await sdk.ls.rawRPC("StartCascade", { source: 0 }) as {
+          cascadeId?: string;
+        };
+        const cascadeId = startResponse.cascadeId ?? null;
+
+        if (!cascadeId) {
+          throw new Error("StartCascade did not return cascadeId");
+        }
+
+        await sdk.ls.rawRPC("SendUserCascadeMessage", {
+          cascadeId,
+          items: [{ chunk: { text } }],
+          cascadeConfig: {
+            plannerConfig: {
+              plannerTypeConfig: { conversational: {} },
+              requestedModel: { model: model ?? Models.GEMINI_FLASH },
+            },
+          },
+        });
+
+        return cascadeId;
+      } catch (error) {
+        errors.push(toError(error));
+      }
     }
 
-    const payload = {
-      cascadeId,
-      items: [{ chunk: { text } }],
-      cascadeConfig: {
-        plannerConfig: {
-          plannerTypeConfig: { conversational: {} },
-          requestedModel: { model: model ?? Models.GEMINI_FLASH },
-        },
-      },
-    };
-
-    await sdk.ls.rawRPC("SendUserCascadeMessage", payload);
-    return cascadeId;
+    throw errors[0] ?? new Error("Failed to create headless conversation");
   }
 
   async getConversation(conversationId: string): Promise<unknown> {
@@ -201,10 +272,9 @@ class AntigravitySdkMonitoringService implements MonitoringService {
   ) {}
 
   async getLsStatus(): Promise<{ initialized: boolean; ready: boolean; port: number | null; hasCsrfToken: boolean }> {
-    const state = this.runtime.getState();
-
     try {
       const sdk = await this.runtime.ready();
+      const state = this.runtime.getState();
       const ready = sdk.ls.isReady && sdk.ls.hasCsrfToken;
       return {
         initialized: state.initialized,
@@ -213,8 +283,9 @@ class AntigravitySdkMonitoringService implements MonitoringService {
         hasCsrfToken: sdk.ls.hasCsrfToken,
       };
     } catch {
+      const state = this.runtime.getState();
       return {
-        initialized: false,
+        initialized: state.initialized,
         ready: false,
         port: null,
         hasCsrfToken: false,
@@ -332,4 +403,222 @@ function toError(error: unknown): Error {
   }
 
   return new Error(String(error));
+}
+
+function isInvalidCsrfError(error: unknown): boolean {
+  return toError(error).message.includes("Invalid CSRF token");
+}
+
+interface WorkspaceLsConnection {
+  port: number;
+  csrfToken: string;
+  useTls: boolean;
+}
+
+async function discoverWorkspaceLsConnections(
+  context: vscode.ExtensionContext,
+): Promise<WorkspaceLsConnection[]> {
+  const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+  if (workspaceFolders.length === 0 || process.platform === "win32") {
+    return [];
+  }
+
+  const preferredFolders = await orderWorkspaceFoldersForExtension(workspaceFolders, context);
+  const connections: WorkspaceLsConnection[] = [];
+
+  for (const workspaceFolder of preferredFolders) {
+    const normalizedPath = workspaceFolder.uri.fsPath.replace(/^[/\\]+/, "");
+    const workspaceIdHint = `file_${normalizedPath.replace(/[\\/.:\-\s]/g, "_")}`;
+    const processInfo = await findWorkspaceLsProcess(workspaceIdHint);
+    if (!processInfo) {
+      continue;
+    }
+
+    const connectPort = await findWorkspaceConnectPort(processInfo.pid, processInfo.extPort, processInfo.csrfToken);
+    if (connectPort) {
+      connections.push(connectPort);
+      continue;
+    }
+
+    if (processInfo.extPort > 0) {
+      connections.push({
+        port: processInfo.extPort,
+        csrfToken: processInfo.csrfToken,
+        useTls: false,
+      });
+    }
+  }
+
+  return connections;
+}
+
+async function orderWorkspaceFoldersForExtension(
+  workspaceFolders: readonly vscode.WorkspaceFolder[],
+  context: vscode.ExtensionContext,
+): Promise<vscode.WorkspaceFolder[]> {
+  const extensionPath = context.extension.extensionPath;
+  const extensionPackageName = getExtensionPackageName(context);
+  const rankedFolders = await Promise.all(workspaceFolders.map(async (folder) => ({
+    folder,
+    score: await scoreWorkspaceFolderForExtension(folder, extensionPath, extensionPackageName),
+  })));
+
+  rankedFolders.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+
+    return left.folder.index - right.folder.index;
+  });
+
+  return rankedFolders.map(({ folder }) => folder);
+}
+
+function getExtensionPackageName(context: vscode.ExtensionContext): string | null {
+  const packageJson = context.extension.packageJSON;
+  return typeof packageJson?.name === "string" ? packageJson.name : null;
+}
+
+async function scoreWorkspaceFolderForExtension(
+  workspaceFolder: vscode.WorkspaceFolder,
+  extensionPath: string,
+  extensionPackageName: string | null,
+): Promise<number> {
+  let score = 0;
+
+  if (extensionPath.startsWith(workspaceFolder.uri.fsPath)) {
+    score += 2;
+  }
+
+  if (await workspaceContainsExtensionPackage(workspaceFolder, extensionPackageName)) {
+    score += 10;
+  }
+
+  return score;
+}
+
+async function workspaceContainsExtensionPackage(
+  workspaceFolder: vscode.WorkspaceFolder,
+  extensionPackageName: string | null,
+): Promise<boolean> {
+  if (!extensionPackageName) {
+    return false;
+  }
+
+  try {
+    const packageJsonPath = join(workspaceFolder.uri.fsPath, "packages", "extension", "package.json");
+    const content = await readFile(packageJsonPath, "utf8");
+    const packageJson = JSON.parse(content) as { name?: unknown };
+    return packageJson.name === extensionPackageName;
+  } catch {
+    return false;
+  }
+}
+
+async function findWorkspaceLsProcess(
+  workspaceIdHint: string,
+): Promise<{ pid: number; csrfToken: string; extPort: number } | null> {
+  try {
+    const { stdout } = await execFileAsync("ps", ["-eo", "pid,args"], {
+      timeout: 5000,
+      encoding: "utf8",
+    });
+
+    const line = stdout
+      .split("\n")
+      .find((entry) => entry.includes("language_server") && entry.includes("csrf_token") && entry.includes(workspaceIdHint));
+
+    if (!line) {
+      return null;
+    }
+
+    const pidMatch = line.trim().match(/^(\d+)/);
+    const csrfMatch = line.match(/--csrf_token\s+([^\s"]+)/);
+    const extPortMatch = line.match(/--extension_server_port\s+([^\s"]+)/);
+    const pid = pidMatch ? Number.parseInt(pidMatch[1], 10) : Number.NaN;
+    const extPort = extPortMatch ? Number.parseInt(extPortMatch[1], 10) : 0;
+
+    if (!csrfMatch || Number.isNaN(pid)) {
+      return null;
+    }
+
+    return {
+      pid,
+      csrfToken: csrfMatch[1],
+      extPort,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function findWorkspaceConnectPort(
+  pid: number,
+  extPort: number,
+  csrfToken: string,
+): Promise<WorkspaceLsConnection | null> {
+  try {
+    const { stdout } = await execFileAsync("lsof", ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN"], {
+      timeout: 5000,
+      encoding: "utf8",
+    });
+
+    const ports = stdout
+      .split("\n")
+      .flatMap((line) => {
+        const match = line.match(/127\.0\.0\.1:(\d+) \(LISTEN\)/);
+        return match ? [Number.parseInt(match[1], 10)] : [];
+      })
+      .filter((port, index, values) => port !== extPort && values.indexOf(port) === index);
+
+    for (const port of ports) {
+      if (await probeLsPort(port, csrfToken, true)) {
+        return { port, csrfToken, useTls: true };
+      }
+    }
+
+    for (const port of ports) {
+      if (await probeLsPort(port, csrfToken, false)) {
+        return { port, csrfToken, useTls: false };
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function probeLsPort(
+  port: number,
+  csrfToken: string,
+  useTls: boolean,
+): Promise<boolean> {
+  const transport = useTls ? await import("node:https") : await import("node:http");
+
+  return new Promise((resolve) => {
+    const request = transport.request({
+      host: "127.0.0.1",
+      port,
+      path: "/exa.language_server_pb.LanguageServerService/GetUserStatus",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": 2,
+        "x-codeium-csrf-token": csrfToken,
+      },
+      rejectUnauthorized: false,
+      timeout: 2000,
+    }, (response) => {
+      resolve(response.statusCode === 200);
+    });
+
+    request.on("error", () => resolve(false));
+    request.on("timeout", () => {
+      request.destroy();
+      resolve(false);
+    });
+    request.write("{}");
+    request.end();
+  });
 }

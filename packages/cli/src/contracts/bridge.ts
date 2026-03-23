@@ -1,6 +1,6 @@
 export const BRIDGE_PATHS = {
   ping: "/ping",
-  send: "/send",
+  send: "/chat",
   chat: "/chat",
   action: "/action",
   listCascades: "/list-cascades",

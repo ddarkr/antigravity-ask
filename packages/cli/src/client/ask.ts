@@ -23,7 +23,7 @@ export async function waitForAskResponse(
   text: string,
   options: AskOptions = {},
 ): Promise<AskResult> {
-  const sendResult = await client.send(text);
+  const sendResult = await client.chat(text);
 
   if (!sendResult.success || !sendResult.conversation_id) {
     throw new Error("Failed to obtain conversation_id after sending.");

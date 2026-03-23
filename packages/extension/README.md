@@ -7,7 +7,7 @@ Antigravity Bridge starts a local HTTP and WebSocket bridge inside the Antigravi
 - Starts a local HTTP server on port `5820` by default.
 - Starts a local WebSocket server on port `5821` by default.
 - Exposes REST endpoints for sending prompts, running chat actions, reading conversations, and reading artifacts.
-- Uses Antigravity native commands when possible and falls back to the internal LS bridge for headless conversation access.
+- Uses Antigravity native commands when possible and uses `antigravity-sdk` LS access for headless conversation flows.
 
 ## Requirements
 

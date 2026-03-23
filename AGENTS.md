@@ -15,7 +15,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 현재 아키텍처는 두 가지 레이어로 구성됩니다:
 
 1. **Native API Layer** — `vscode.commands.executeCommand`를 통한 공식 VS Code 명령 실행
-2. **LSBridge Layer** — Antigravity Language Server의 내부 gRPC-Gateway API에 직접 HTTP 요청을 보내어 대화 생성/조회를 수행 (헤드리스 모드)
+2. **SDK-backed LS Layer** — `antigravity-sdk`의 `sdk.ls`와 raw RPC를 통해 헤드리스 대화 생성/조회 수행
 
 ---
 
@@ -23,7 +23,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 
 모노레포 구조: `pnpm-workspace.yaml`로 관리되며 현재 활성 패키지는 `packages/extension`과 `packages/cli`입니다.
 
-- `packages/extension` — VS Code 익스텐션 호스트. 브릿지 서버, LSBridge, 아티팩트 접근을 담당합니다.
+- `packages/extension` — VS Code 익스텐션 호스트. 브릿지 서버, SDK-backed bridge services, 아티팩트 접근을 담당합니다.
 - `packages/cli` — publishable CLI 및 공유 contracts/client 패키지. `antigravity-chat` 패키지명과 `antigravity-bridge` 실행 파일을 제공합니다.
 
 ### 소스 파일 목록
@@ -32,7 +32,7 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `packages/extension/src/extension.ts` | VS Code 익스텐션 진입점. `activate` / `deactivate` 처리, 레거시 파일 복구, 서버 시작      |
 | `packages/extension/src/server.ts`    | Hono 기반 HTTP 서버(포트 `5820`) + WebSocket 서버(포트 `5821`) 정의. 모든 REST API 라우팅 |
-| `packages/extension/src/ls-bridge.ts` | Antigravity Language Server gRPC-Gateway에 직접 HTTP 요청하는 `LSBridge` 클래스           |
+| `packages/extension/src/bridge-services.ts` | SDK-backed conversation/action/monitoring services와 legacy `/send` fallback 구현 |
 | `packages/extension/src/artifacts.ts` | `~/.gemini/antigravity/brain/` 하위의 대화 아티팩트 파일을 읽는 유틸 함수                 |
 | `packages/cli/src/cli.ts`             | 터미널에서 사용하는 CLI 엔트리. `antigravity-bridge <command>` 형태                         |
 | `packages/cli/src/contracts/*`        | 브릿지 API 경로, 액션, 대화 응답 타입/헬퍼 등 공유 계약                                      |
@@ -48,51 +48,37 @@ Antigravity IDE 내부에 Hono 서버(HTTP, WebSocket)를 띄워서, **외부 CL
 | Method | Path                  | 설명                                                                               |
 | ------ | --------------------- | ---------------------------------------------------------------------------------- |
 | GET    | `/ping`               | 헬스체크. `{ status: "ok", mode: "native_api" }` 반환                              |
-| GET    | `/lsstatus`           | LSBridge 연결 상태 확인 (port, csrf 유무 등)                                       |
-| POST   | `/send`               | 새 대화 열고 프롬프트 전송 (Native API). `conversation_id` 반환                    |
-| POST   | `/chat`               | LSBridge를 통해 헤드리스 Cascade 생성 및 메시지 전송. `conversation_id` 반환       |
+| GET    | `/lsstatus`           | SDK LS 연결 상태 확인 (port, csrf 유무 등)                                         |
+| POST   | `/send`               | 레거시 Native API fallback으로 새 대화 열고 프롬프트 전송                          |
+| POST   | `/chat`               | SDK-backed headless Cascade 생성 및 메시지 전송. `conversation_id` 반환            |
 | POST   | `/action`             | 액션 실행 (`start_new_chat`, `focus_chat`, `allow`, `reject_step`, `terminal_run`) |
-| GET    | `/conversation/:id`   | 특정 대화(googleAgentId)의 전체 trajectory 조회 (LSBridge)                         |
-| GET    | `/list-cascades`      | 모든 Cascade 목록 및 상태 조회 (LSBridge)                                          |
-| POST   | `/focus/:id`          | 특정 Cascade를 UI에서 포커스 (LSBridge SmartFocusConversation)                     |
+| GET    | `/conversation/:id`   | 특정 대화(googleAgentId)의 전체 trajectory 조회 (SDK raw RPC)                      |
+| GET    | `/list-cascades`      | 모든 Cascade 목록 및 상태 조회 (SDK LS)                                            |
+| POST   | `/focus/:id`          | 특정 Cascade를 UI에서 포커스 (SDK LS)                                              |
 | POST   | `/openchat/:id`       | VS Code 명령으로 특정 cascadeId 채팅 열기                                          |
 | GET    | `/artifacts`          | `~/.gemini/antigravity/brain/` 하위 대화 목록 반환                                 |
 | GET    | `/artifacts/:convoId` | 특정 대화의 아티팩트 파일 내용 반환 (`?path=파일명`)                               |
 | GET    | `/dump`               | `antigravity.*` 관련 VS Code 명령어 목록 (디버깅용)                                |
-| GET    | `/dump-ls`            | LSBridge 상태 + 최근 Diagnostics 로그 (디버깅용)                                   |
+| GET    | `/dump-ls`            | SDK LS 상태 + 최근 Diagnostics 로그 (디버깅용)                                     |
 | GET    | `/dump-diag-keys`     | getDiagnostics 응답의 키 구조 탐색 (디버깅용)                                      |
 | GET    | `/probe-csrf`         | 특정 antigravity 명령어 실행 결과 probe (디버깅용)                                 |
 
 ---
 
-## 🔌 LSBridge (Language Server Bridge)
+## 🔌 SDK-backed LS Access
 
-`LSBridge` 클래스(`ls-bridge.ts`)는 Antigravity Language Server의 내부 gRPC-Gateway RESTful API에 직접 HTTP/HTTPS 요청을 보냅니다.
+현재 브릿지는 커스텀 `LSBridge` 클래스 대신 `antigravity-sdk`를 내부 wrapper 뒤에서 사용합니다.
 
-### 초기화 흐름
+핵심 구현은 `packages/extension/src/bridge-services.ts`에 있으며, 여기서 `sdk.ls`와 raw RPC를 조합해 다음 기능을 제공합니다.
 
-1. `_discoverFromDiagnosticsFull()` — `antigravity.getDiagnostics` 명령을 통해 LS 로그에서 포트 파싱 (우선)
-2. `_discoverFromProcess()` — `pgrep`/`netstat`으로 LS 프로세스에서 CSRF 토큰 및 포트 추출 (폴백)
+| 기능 | 내부 경로 | 설명 |
+| ---- | --------- | ---- |
+| headless conversation create | `StartCascade` + `SendUserCascadeMessage` | 새 대화 생성 및 첫 메시지 전송 |
+| conversation readback | `GetCascadeTrajectory` | 대화 전체 내용(steps) 조회 |
+| cascade list | `sdk.ls.listCascades()` | 모든 대화 요약 목록 조회 |
+| focus | `sdk.ls.focusCascade()` | 특정 대화 포커스 |
 
-### 지원 RPC 메서드
-
-| 메서드              | gRPC 함수                                 | 설명                           |
-| ------------------- | ----------------------------------------- | ------------------------------ |
-| `createCascade()`   | `StartCascade` + `SendUserCascadeMessage` | 새 대화 생성 및 첫 메시지 전송 |
-| `getConversation()` | `GetCascadeTrajectory`                    | 대화 전체 내용(steps) 조회     |
-| `listCascades()`    | `GetAllCascadeTrajectories`               | 모든 대화 요약 목록 조회       |
-| `focusCascade()`    | `SmartFocusConversation`                  | 특정 대화 포커스               |
-
-### 지원 모델 (`Models` 상수)
-
-| 이름              | ID   |
-| ----------------- | ---- |
-| `GEMINI_FLASH`    | 1018 |
-| `GEMINI_PRO_LOW`  | 1164 |
-| `GEMINI_PRO_HIGH` | 1165 |
-| `CLAUDE_SONNET`   | 1163 |
-| `CLAUDE_OPUS`     | 1154 |
-| `GPT_OSS`         | 342  |
+지원 모델 ID는 `antigravity-sdk`의 `Models`를 사용합니다.
 
 ---
 
@@ -103,8 +89,8 @@ CLI는 `packages/cli` 패키지에서 빌드/배포됩니다. 개발 중에는 `
 환경변수 `AG_BRIDGE_URL`로 서버 주소 변경 가능 (기본값: `http://localhost:5820`).
 
 ```
-antigravity-bridge ask <text>           # 프롬프트 전송 후 에이전트 응답 완료까지 대기, 결과 출력
-antigravity-bridge send <text>          # 프롬프트 전송 (비동기, conversation_id 반환)
+antigravity-bridge ask <text>           # headless prompt 전송 후 에이전트 응답 완료까지 대기, 결과 출력
+antigravity-bridge send <text>          # headless prompt 전송 (비동기, conversation_id 반환)
 antigravity-bridge ping                 # 서버 상태 확인
 antigravity-bridge action <type>        # 액션 실행 (start_new_chat, focus_chat, allow, reject_step, terminal_run)
 antigravity-bridge artifacts            # 대화 아티팩트 목록 조회
@@ -119,7 +105,7 @@ antigravity-bridge conversations        # artifacts 별칭
 
 ### `ask` 커맨드 동작 원리
 
-1. `/send`로 프롬프트 전송 → `conversation_id` 획득
+1. `/chat`로 headless 프롬프트 전송 → `conversation_id` 획득
 2. `/list-cascades` 폴링 (3초 간격) → `CASCADE_RUN_STATUS_IDLE` 대기
 3. 마지막 step이 `USER_INPUT` 타입이 아닌 경우 완료로 판단
 4. `/conversation/:id`로 전체 데이터 조회 후 텍스트 응답 추출 (stdout으로 출력, 진행상황은 stderr)
@@ -185,3 +171,4 @@ pnpm watch   # 파일 변경 감지 + 자동 빌드
 - `queue.ts` — DOM 폴링 시절의 커맨드 큐 (`BridgeState` 클래스). 현재 미사용.
 - `selectors.ts` — DOM 셀렉터 상수 (`SELECTORS`). 현재 미사용.
 - `bridge-payload.js` / `bridge-payload.html` — 과거 웹뷰에 주입하던 페이로드 파일. 현재 미사용.
+- `/send` — 현재는 레거시 Native API fallback 경로로만 유지되며, CLI `ask`/`send`의 기본 경로는 `/chat`입니다.

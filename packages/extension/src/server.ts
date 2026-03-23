@@ -190,10 +190,10 @@ export function createBridgeServer(options: {
       );
       
       if (!cascadeId) {
-        return c.json({ error: "Failed to create headless cascade (is LSBridge connected?)" }, 500);
+        return c.json({ error: "Failed to create headless cascade (is SDK LS connection ready?)" }, 500);
       }
       
-      return c.json({ conversation_id: cascadeId });
+      return c.json({ success: true, conversation_id: cascadeId });
     } catch (e: any) {
       console.error("[Bridge] POST /chat failed:", e);
       return c.json({ error: e.message || String(e) }, 500);

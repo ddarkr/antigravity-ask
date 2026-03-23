@@ -4,7 +4,7 @@ Antigravity IDE 안에 브릿지 서버를 띄워서 외부 CLI나 다른 에이
 
 ## Packages
 
-- `packages/extension` — VS Code extension host. Hono HTTP/WebSocket 서버, LSBridge, artifact access를 담당합니다.
+- `packages/extension` — VS Code extension host. Hono HTTP/WebSocket 서버, SDK-backed bridge services, artifact access를 담당합니다.
 - `packages/cli` — publishable CLI package. 패키지명은 `antigravity-chat`, 실행 파일은 `antigravity-bridge`입니다.
 
 ## Development
@@ -24,7 +24,14 @@ CLI는 `packages/cli`에서 빌드됩니다. fresh clone 직후에는 `dist/`가
 
 ```bash
 pnpm --filter antigravity-chat build
-node packages/cli/dist/cli.js --help
+pnpm exec antigravity-bridge --help
+```
+
+테스트용으로는 루트에서 바로 아래처럼 실행하면 됩니다.
+
+```bash
+pnpm exec antigravity-bridge ping
+pnpm exec antigravity-bridge ask "hello"
 ```
 
 기본 브릿지 주소는 `http://localhost:5820`이고, 필요하면 `AG_BRIDGE_URL`로 변경할 수 있습니다.
