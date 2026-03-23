@@ -24,8 +24,8 @@ Set these repository secrets before using the workflow:
 - `packages/extension/package.json` version must match the GitHub Release tag without the leading `v`.
   - Example: release tag `v0.1.0`
   - Expected package version: `0.1.0`
-- The Open VSX namespace for `antigravity-bridge` must already exist.
-- The Marketplace publisher for `antigravity-bridge` must already exist.
+- The Open VSX namespace for `ddarkr` must already exist.
+- The Marketplace publisher for `ddarkr` must already exist.
 
 ## Workflow behavior
 
