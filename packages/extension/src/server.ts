@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { BRIDGE_ACTIONS } from "antigravity-chat";
+import { BRIDGE_ACTIONS } from "antigravity-bridge";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { WebSocketServer } from "ws";
