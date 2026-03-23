@@ -18,18 +18,9 @@ jobs:
       run:
         shell: bash
         working-directory: packages/cli
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Check required secrets
-        run: |
-          if [[ -z "${NPM_TOKEN}" ]]; then
-            echo "Missing required secret: NPM_TOKEN" >&2
-            exit 1
-          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -63,6 +54,4 @@ jobs:
         run: pnpm build
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish --access public
