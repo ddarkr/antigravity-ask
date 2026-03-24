@@ -6,6 +6,12 @@ It is written for agents that need short, reliable instructions and copy-pasteab
 
 If your environment supports reusable repo skills, start with `skills/antigravity-ask/SKILL.md` and use this document as the deeper command reference.
 
+To install the reusable skill into Antigravity:
+
+```bash
+npx skills add ddarkr/antigravity-ask --skill antigravity-ask -a antigravity -y
+```
+
 ## What This CLI Does
 
 `npx antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the Antigravity extension host.
@@ -117,8 +123,15 @@ Use `ask` when you want a single final answer.
 
 Important:
 
-- the current CLI does not expose a `--model` or `--fast` flag for `ask`
-- if you need explicit model selection, use the HTTP bridge API instead of the CLI `ask` command
+- use `--variant <name>` when you want simple model selection from the CLI
+- if you need an arbitrary numeric SDK model id instead of a supported variant alias, use the HTTP bridge API directly
+
+Example:
+
+```bash
+npx antigravity-ask --variant flash ask "List the supported bridge actions."
+npx antigravity-ask --variant pro send "Review the failing tests"
+```
 
 ### `send <text>`
 
@@ -197,11 +210,31 @@ Legacy alias:
 npx antigravity-ask new-chat
 ```
 
-## Advanced: Headless Chat With Explicit Model Selection
+## Model Variants
 
-The CLI `ask` command does not currently let you pick a model such as Gemini fast mode directly.
+The CLI supports simple model selection through `--variant <name>` for `ask` and `send`.
 
-If you need explicit model control, use the bridge HTTP API:
+Supported variants:
+
+- `flash` → Gemini Flash
+- `pro` → Gemini Pro high
+- `pro-low` → Gemini Pro low
+- `sonnet` → Claude Sonnet
+- `opus` → Claude Opus
+- `gpt-oss` → GPT-OSS
+
+If `--variant` is omitted, the bridge keeps its default model behavior.
+
+Examples:
+
+```bash
+npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
+npx antigravity-ask --variant pro send "Create a release summary"
+```
+
+## Advanced: Headless Chat With Explicit Numeric Model IDs
+
+If you need a numeric SDK model id that is not covered by the built-in variant aliases, use the bridge HTTP API:
 
 ```bash
 curl -X POST http://localhost:5820/chat \
@@ -217,7 +250,7 @@ Notes:
 - `/chat` accepts `text` and an optional `model`
 - when `model` is omitted, the server defaults to `Models.GEMINI_FLASH`
 - the current repository uses model ids re-exported by `antigravity-sdk`
-- this is the closest current equivalent to an explicit Gemini fast-style request in this project
+- this is the lowest-level path when the CLI aliases are not enough
 
 ## Output Rules
 

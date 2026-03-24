@@ -56,8 +56,25 @@ Examples:
 ```bash
 npx antigravity-ask --url http://127.0.0.1:5820 ping
 npx antigravity-ask --http-port 5820 ping
+npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
+npx antigravity-ask --variant pro send "Review the failing tests"
 AG_BRIDGE_URL=http://127.0.0.1:5820 npx antigravity-ask ping
 ```
+
+## Model variants
+
+`ask` and `send` accept a global `--variant <name>` option.
+
+Supported variants:
+
+- `flash` → Gemini Flash
+- `pro` → Gemini Pro high
+- `pro-low` → Gemini Pro low
+- `sonnet` → Claude Sonnet
+- `opus` → Claude Opus
+- `gpt-oss` → GPT-OSS
+
+If you omit `--variant`, the bridge keeps its default model selection behavior.
 
 ## Commands
 

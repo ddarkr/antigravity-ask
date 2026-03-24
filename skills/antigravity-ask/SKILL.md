@@ -1,10 +1,24 @@
 ---
-name: Antigravity Ask
-description: Use this skill when you need to drive Antigravity through the local bridge, send prompts from another agent, inspect conversations, read artifacts, or trigger bridge actions. Triggers include: "use Antigravity from this agent", "send this prompt to Antigravity", "inspect the bridge conversation", "read the artifact output", "check whether the bridge is alive", and "drive Antigravity through npx antigravity-ask".
+name: antigravity-ask
+description: Use the Antigravity Ask Bridge to send prompts, inspect conversations, read artifacts, and run bridge actions.
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # Antigravity Ask
+
+## Install with `skills add`
+
+Install from the published repository:
+
+```bash
+npx skills add ddarkr/antigravity-ask --skill antigravity-ask -a antigravity -y
+```
+
+For local development from this repo checkout:
+
+```bash
+npx skills add . --skill antigravity-ask -a antigravity -y
+```
 
 This skill helps an agent use the Antigravity Ask Bridge safely and predictably through `npx antigravity-ask`.
 
@@ -33,24 +47,41 @@ Follow this order unless you already know the bridge is reachable.
    - `conversation`, `artifacts`, and `action` return JSON.
    - `artifact` returns raw file contents.
 
-4. **Escalate to the HTTP API only when necessary**
-   - If you need explicit `model` control or lower-level integration, use the bridge HTTP API instead of the CLI shortcut.
+4. **Pick a model variant when you need one**
+   - Use `--variant <name>` with `ask` or `send` for simple model selection.
+   - Supported variants: `flash`, `pro`, `pro-low`, `sonnet`, `opus`, `gpt-oss`.
+
+5. **Escalate to the HTTP API only when necessary**
+   - If you need an arbitrary numeric `model` id or lower-level integration, use the bridge HTTP API instead of the CLI shortcut.
 
 ## Golden path
 
 ```bash
 npx antigravity-ask ping
 npx antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
 ```
 
 ## Async inspection flow
 
 ```bash
 npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask --variant pro send "Review the failing tests"
 npx antigravity-ask conversation <conversation_id>
 npx antigravity-ask artifacts
 npx antigravity-ask artifact <conversation_id> output.md
 ```
+
+## Model variants
+
+Use these aliases with `ask` and `send`:
+
+- `flash` → Gemini Flash
+- `pro` → Gemini Pro high
+- `pro-low` → Gemini Pro low
+- `sonnet` → Claude Sonnet
+- `opus` → Claude Opus
+- `gpt-oss` → GPT-OSS
 
 ## URL overrides
 
@@ -59,7 +90,7 @@ If the bridge is not on the default port, the CLI resolves its base URL in this 
 1. `--url <baseUrl>`
 2. `--http-port <port>`
 3. `AG_BRIDGE_URL`
-4. `http://localhost:5820`
+4. current working directory workspace discovery
 
 Examples:
 
