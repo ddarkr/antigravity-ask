@@ -84,23 +84,23 @@ Supported model IDs come from `antigravity-sdk`'s `Models`.
 
 ## 💻 CLI Usage
 
-The CLI is built and distributed from `packages/cli`. During development, you can use `node packages/cli/dist/cli.js` or the `antigravity-ask` command.
+The CLI is built and distributed from `packages/cli`. During development, you can use `node packages/cli/dist/cli.js`, `pnpm exec antigravity-ask`, or `npx antigravity-ask`.
 
 You can override the server address with the `AG_BRIDGE_URL` environment variable (default: `http://localhost:5820`).
 
 ```bash
-antigravity-ask ask <text>           # send a headless prompt, wait for the agent to finish, print the result
-antigravity-ask send <text>          # send a headless prompt asynchronously, return conversation_id
-antigravity-ask ping                 # check server status
-antigravity-ask action <type>        # run an action (start_new_chat, focus_chat, allow, reject_step, terminal_run)
-antigravity-ask artifacts            # list conversation artifacts
-antigravity-ask conversation <id>    # fetch a specific conversation
-antigravity-ask artifact <id> <path> # read a specific artifact file
+npx antigravity-ask ask <text>           # send a headless prompt, wait for the agent to finish, print the result
+npx antigravity-ask send <text>          # send a headless prompt asynchronously, return conversation_id
+npx antigravity-ask ping                 # check server status
+npx antigravity-ask action <type>        # run an action (start_new_chat, focus_chat, allow, reject_step, terminal_run)
+npx antigravity-ask artifacts            # list conversation artifacts
+npx antigravity-ask conversation <id>    # fetch a specific conversation
+npx antigravity-ask artifact <id> <path> # read a specific artifact file
 
 # Aliases
-antigravity-ask status               # alias for ping
-antigravity-ask new-chat             # alias for action start_new_chat
-antigravity-ask conversations        # alias for artifacts
+npx antigravity-ask status               # alias for ping
+npx antigravity-ask new-chat             # alias for action start_new_chat
+npx antigravity-ask conversations        # alias for artifacts
 ```
 
 ### How the `ask` command works

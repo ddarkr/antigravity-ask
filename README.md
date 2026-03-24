@@ -1,6 +1,6 @@
 # Antigravity Ask Bridge
 
-The most convenient way to control Antigravity is to enable the bridge extension first and then use `antigravity-ask`.
+The most convenient way to control Antigravity is to enable the bridge extension first and then use `npx antigravity-ask`.
 
 ```bash
 # 1) Check that the bridge is running
@@ -78,20 +78,22 @@ pnpm exec antigravity-ask ask "hello"
 The default bridge URL is `http://localhost:5820`, and you can override it with `AG_BRIDGE_URL` when needed.
 
 ```bash
-antigravity-ask ask <text>
-antigravity-ask send <text>
-antigravity-ask ping
-antigravity-ask action <type>
-antigravity-ask artifacts
-antigravity-ask conversation <id>
-antigravity-ask artifact <id> <path>
+npx antigravity-ask ask <text>
+npx antigravity-ask send <text>
+npx antigravity-ask ping
+npx antigravity-ask action <type>
+npx antigravity-ask artifacts
+npx antigravity-ask conversation <id>
+npx antigravity-ask artifact <id> <path>
 ```
 
 ## For AI Agents
 
 If you want to drive Antigravity from a coding agent, start with `docs/cli-for-agents.md`.
 
-Use `antigravity-ask ping` to verify connectivity before calling `ask` or `send`.
+If you want a reusable agent skill, see `skills/antigravity-ask/SKILL.md`.
+
+Use `npx antigravity-ask ping` to verify connectivity before calling `ask` or `send`.
 
 ## Contributing
 

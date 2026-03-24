@@ -21,11 +21,11 @@ Install the extension from Visual Studio Marketplace or Open VSX, then reload th
 
 ## Recommended usage
 
-For most users, the recommended way to interact with the bridge is through the published `antigravity-ask` CLI rather than calling the HTTP API directly.
+For most users, the recommended way to interact with the bridge is through `npx antigravity-ask` rather than calling the HTTP API directly.
 
 ```bash
-antigravity-ask ping
-antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask ping
+npx antigravity-ask ask "Summarize the current bridge architecture."
 ```
 
 Use the raw HTTP endpoints when you need direct integration or custom automation beyond what the CLI already provides.

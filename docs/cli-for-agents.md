@@ -1,12 +1,14 @@
 # Antigravity Ask Bridge CLI for Coding Agents
 
-This guide explains how to use `antigravity-ask` from terminal-based coding agents.
+This guide explains how to use `npx antigravity-ask` from terminal-based coding agents.
 
 It is written for agents that need short, reliable instructions and copy-pasteable examples.
 
+If your environment supports reusable repo skills, start with `skills/antigravity-ask/SKILL.md` and use this document as the deeper command reference.
+
 ## What This CLI Does
 
-`antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the VS Code extension host.
+`npx antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the VS Code extension host.
 
 Use it when you want to:
 
@@ -49,9 +51,9 @@ The CLI resolves the base URL in this order:
 Examples:
 
 ```bash
-antigravity-ask --url http://127.0.0.1:5820 ping
-antigravity-ask --http-port 5820 ping
-AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-ask ping
+npx antigravity-ask --url http://127.0.0.1:5820 ping
+npx antigravity-ask --http-port 5820 ping
+AG_BRIDGE_URL=http://127.0.0.1:5820 npx antigravity-ask ping
 ```
 
 ## Golden Path
@@ -59,15 +61,15 @@ AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-ask ping
 Start with this flow:
 
 ```bash
-antigravity-ask ping
-antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask ping
+npx antigravity-ask ask "Summarize the current bridge architecture."
 ```
 
 If you need asynchronous control:
 
 ```bash
-antigravity-ask send "Open a new chat and say hello"
-antigravity-ask conversation <conversation_id>
+npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask conversation <conversation_id>
 ```
 
 ## Commands
@@ -77,7 +79,7 @@ antigravity-ask conversation <conversation_id>
 Checks whether the bridge server is reachable.
 
 ```bash
-antigravity-ask ping
+npx antigravity-ask ping
 ```
 
 Expected output: JSON to stdout.
@@ -85,7 +87,7 @@ Expected output: JSON to stdout.
 Alias:
 
 ```bash
-antigravity-ask status
+npx antigravity-ask status
 ```
 
 ### `ask <text>`
@@ -93,7 +95,7 @@ antigravity-ask status
 Sends a prompt and waits until the bridge decides the conversation is finished.
 
 ```bash
-antigravity-ask ask "List the supported bridge actions."
+npx antigravity-ask ask "List the supported bridge actions."
 ```
 
 Behavior:
@@ -114,7 +116,7 @@ Important:
 Starts a headless prompt without waiting for completion.
 
 ```bash
-antigravity-ask send "Create a new conversation about release notes"
+npx antigravity-ask send "Create a new conversation about release notes"
 ```
 
 Expected output: stdout includes a status line followed by JSON, usually including `conversation_id`.
@@ -126,23 +128,17 @@ Use `send` when you want to poll or inspect the conversation yourself.
 Reads the full conversation payload.
 
 ```bash
-antigravity-ask conversation <conversation_id>
+npx antigravity-ask conversation <conversation_id>
 ```
 
 Expected output: JSON to stdout.
-
-Alias:
-
-```bash
-antigravity-ask chat <conversation_id>
-```
 
 ### `artifacts`
 
 Lists known conversation or artifact entries.
 
 ```bash
-antigravity-ask artifacts
+npx antigravity-ask artifacts
 ```
 
 Expected output: JSON to stdout.
@@ -150,7 +146,7 @@ Expected output: JSON to stdout.
 Alias:
 
 ```bash
-antigravity-ask conversations
+npx antigravity-ask conversations
 ```
 
 ### `artifact <convoId> <path>`
@@ -158,7 +154,7 @@ antigravity-ask conversations
 Reads a specific artifact file.
 
 ```bash
-antigravity-ask artifact <conversation_id> output.md
+npx antigravity-ask artifact <conversation_id> output.md
 ```
 
 Expected output: raw file contents to stdout.
@@ -168,9 +164,9 @@ Expected output: raw file contents to stdout.
 Runs a bridge action.
 
 ```bash
-antigravity-ask action start_new_chat
-antigravity-ask action focus_chat
-antigravity-ask action allow
+npx antigravity-ask action start_new_chat
+npx antigravity-ask action focus_chat
+npx antigravity-ask action allow
 ```
 
 Supported action names from the shared contract:
@@ -181,14 +177,15 @@ Supported action names from the shared contract:
 - `allow`
 - `reject_step`
 - `terminal_run`
-- `switch_chat`
+
+`switch_chat` exists in the shared contract, but the current `/action` server route returns an error for it.
 
 Expected output: JSON to stdout.
 
 Legacy alias:
 
 ```bash
-antigravity-ask new-chat
+npx antigravity-ask new-chat
 ```
 
 ## Advanced: Headless Chat With Explicit Model Selection
@@ -202,14 +199,14 @@ curl -X POST http://localhost:5820/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "text": "Summarize the current bridge architecture.",
-    "model": 1018
+    "model": <sdk model id>
   }'
 ```
 
 Notes:
 
 - `/chat` accepts `text` and an optional `model`
-- when `model` is omitted, the server defaults to `Models.GEMINI_FLASH` (`1018`)
+- when `model` is omitted, the server defaults to `Models.GEMINI_FLASH`
 - the current repository uses model ids re-exported by `antigravity-sdk`
 - this is the closest current equivalent to an explicit Gemini fast-style request in this project
 
@@ -294,16 +291,9 @@ If this document and the implementation ever disagree, trust these files:
 - path and action names: `packages/cli/src/contracts/bridge.ts`
 - server routes: `packages/extension/src/server.ts`
 
-## Recommended README Snippet
+## README Pointer
 
-The root README should eventually include a short pointer like this:
-
-```md
-## For AI agents
-
-If you want to drive Antigravity from a coding agent, start with `docs/cli-for-agents.md`.
-Use `antigravity-ask ping` to verify connectivity before calling `ask` or `send`.
-```
+The root README already points to this guide and to `skills/antigravity-ask/SKILL.md`.
 
 ## Non-Goals
 

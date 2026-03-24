@@ -4,7 +4,15 @@
 
 With this CLI, you can send prompts to Antigravity chat, wait for a final response, and inspect conversations or artifacts.
 
-## Install
+## Quick start
+
+You do not need to install the CLI globally to use it.
+
+```bash
+npx antigravity-ask ping
+```
+
+If you prefer a global install, you can still use:
 
 ```bash
 npm install -g antigravity-ask
@@ -13,7 +21,7 @@ npm install -g antigravity-ask
 After installation, you can verify it immediately in an environment where the bridge is running.
 
 ```bash
-antigravity-ask ping
+npx antigravity-ask ping
 ```
 
 The default bridge URL is `http://localhost:5820`.
@@ -22,14 +30,14 @@ The default bridge URL is `http://localhost:5820`.
 
 ```bash
 # Check bridge status
-antigravity-ask ping
+npx antigravity-ask ping
 
 # Send one request and wait for the final response
-antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask ask "Summarize the current bridge architecture."
 
 # Send asynchronously and inspect later
-antigravity-ask send "Open a new chat and say hello"
-antigravity-ask conversation <conversation_id>
+npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask conversation <conversation_id>
 ```
 
 ## URL overrides
@@ -44,39 +52,39 @@ The CLI resolves the base URL in the following order.
 Examples:
 
 ```bash
-antigravity-ask --url http://127.0.0.1:5820 ping
-antigravity-ask --http-port 5820 ping
-AG_BRIDGE_URL=http://127.0.0.1:5820 antigravity-ask ping
+npx antigravity-ask --url http://127.0.0.1:5820 ping
+npx antigravity-ask --http-port 5820 ping
+AG_BRIDGE_URL=http://127.0.0.1:5820 npx antigravity-ask ping
 ```
 
 ## Commands
 
 ```bash
-antigravity-ask ask <text>
-antigravity-ask send <text>
-antigravity-ask ping
-antigravity-ask action <type>
-antigravity-ask artifacts
-antigravity-ask conversation <id>
-antigravity-ask artifact <id> <path>
+npx antigravity-ask ask <text>
+npx antigravity-ask send <text>
+npx antigravity-ask ping
+npx antigravity-ask action <type>
+npx antigravity-ask artifacts
+npx antigravity-ask conversation <id>
+npx antigravity-ask artifact <id> <path>
 ```
 
 Legacy aliases:
 
 ```bash
-antigravity-ask status
-antigravity-ask new-chat
-antigravity-ask conversations
+npx antigravity-ask status
+npx antigravity-ask new-chat
+npx antigravity-ask conversations
 ```
 
 ## Common actions
 
 ```bash
-antigravity-ask action start_new_chat
-antigravity-ask action focus_chat
-antigravity-ask action allow
-antigravity-ask action reject_step
-antigravity-ask action terminal_run
+npx antigravity-ask action start_new_chat
+npx antigravity-ask action focus_chat
+npx antigravity-ask action allow
+npx antigravity-ask action reject_step
+npx antigravity-ask action terminal_run
 ```
 
 Canonical action/path contracts live in `src/contracts/bridge.ts`.
