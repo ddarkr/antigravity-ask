@@ -8,7 +8,7 @@ If your environment supports reusable repo skills, start with `skills/antigravit
 
 ## What This CLI Does
 
-`npx antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the VS Code extension host.
+`npx antigravity-ask` talks to the Antigravity Ask Bridge HTTP server running inside the Antigravity extension host.
 
 Use it when you want to:
 
@@ -33,20 +33,22 @@ Build step for a fresh checkout:
 pnpm --filter antigravity-ask build
 ```
 
-Default bridge URL:
+Default behavior without explicit overrides:
 
 ```text
-http://localhost:5820
+resolve bridge from the current working directory
+open the folder as a workspace when needed
+wait for the matching bridge and LS readiness
 ```
 
 ## URL Resolution Rules
 
-The CLI resolves the base URL in this order:
+The CLI resolves the target bridge in this order:
 
 1. `--url <baseUrl>`
 2. `--http-port <port>`
 3. `AG_BRIDGE_URL`
-4. `http://localhost:5820`
+4. current working directory workspace discovery
 
 Examples:
 
@@ -64,6 +66,13 @@ Start with this flow:
 npx antigravity-ask ping
 npx antigravity-ask ask "Summarize the current bridge architecture."
 ```
+
+Discovery rules:
+
+- the CLI only supports single-folder workspace discovery
+- if no bridge exists yet, it opens the current folder with `antigravity --new-window <cwd>`
+- it rejects same-folder multi-window as unsupported ambiguity
+- use `--url` when you need to target a specific bridge manually
 
 If you need asynchronous control:
 

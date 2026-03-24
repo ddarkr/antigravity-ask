@@ -7,13 +7,13 @@ import {
   isBridgeAction,
   waitForAskResponse,
 } from "./index";
+import { resolveBridgeBaseUrl } from "./bridge-resolver";
 import { resolveCliConfig } from "./cli-config";
 
 async function main(): Promise<void> {
   const config = resolveCliConfig(process.argv.slice(2), process.env);
   const args = config.args;
   const command = args[0];
-  const client = createBridgeHttpClient(config.baseUrl);
 
   if (!command || command === "--help" || command === "-h") {
     console.log(`
@@ -41,6 +41,13 @@ Aliases (Legacy):
   }
 
   try {
+    const resolvedBridge = await resolveBridgeBaseUrl({
+      cwd: process.cwd(),
+      explicitBaseUrl: config.explicitBaseUrl,
+      onStatus: (message) => process.stderr.write(`${message}\n`),
+    });
+    const client = createBridgeHttpClient(resolvedBridge.baseUrl);
+
     switch (command) {
       case "send": {
         const text = args[1];

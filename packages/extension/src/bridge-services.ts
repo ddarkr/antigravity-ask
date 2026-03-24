@@ -10,6 +10,10 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import * as vscode from "vscode";
 import {
+  type BridgeDiscoveryMetadata,
+  type BridgeDiscoveryStatus,
+} from "antigravity-ask";
+import {
   collectTrajectoryIds,
   createDiagnosticsSummary,
   delay,
@@ -54,7 +58,14 @@ export interface ActionService {
 }
 
 export interface MonitoringService {
-  getLsStatus(): Promise<{ initialized: boolean; ready: boolean; port: number | null; hasCsrfToken: boolean }>;
+  getLsStatus(): Promise<BridgeDiscoveryStatus & {
+    selectedConnection: {
+      workspacePath: string;
+      workspaceIdHint: string;
+      port: number;
+      useTls: boolean;
+    } | null;
+  }>;
   getLsDebugSummary(): Promise<{
     lsBridge: {
       isReady: boolean;
@@ -88,6 +99,7 @@ class SdkRuntime {
   private initError: Error | null = null;
   private workspaceConnectionAligned = false;
   private candidateConnections: WorkspaceLsConnection[] = [];
+  private selectedConnection: WorkspaceLsConnection | null = null;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
@@ -123,6 +135,7 @@ class SdkRuntime {
     this.initError = null;
     this.workspaceConnectionAligned = false;
     this.candidateConnections = [];
+    this.selectedConnection = null;
     return this.ready();
   }
 
@@ -135,6 +148,7 @@ class SdkRuntime {
     const [connection] = this.candidateConnections;
     if (connection) {
       this.sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
+      this.selectedConnection = connection;
     }
 
     this.workspaceConnectionAligned = true;
@@ -142,6 +156,10 @@ class SdkRuntime {
 
   getCandidateConnections(): WorkspaceLsConnection[] {
     return [...this.candidateConnections];
+  }
+
+  getSelectedConnection(): WorkspaceLsConnection | null {
+    return this.selectedConnection;
   }
 
   getState(): { initialized: boolean; error: Error | null } {
@@ -269,18 +287,36 @@ class AntigravitySdkMonitoringService implements MonitoringService {
   constructor(
     private readonly runtime: SdkRuntime,
     private readonly executeCommand: CommandExecutor,
+    private readonly discovery: BridgeDiscoveryMetadata,
   ) {}
 
-  async getLsStatus(): Promise<{ initialized: boolean; ready: boolean; port: number | null; hasCsrfToken: boolean }> {
+  async getLsStatus(): Promise<BridgeDiscoveryStatus & {
+    selectedConnection: {
+      workspacePath: string;
+      workspaceIdHint: string;
+      port: number;
+      useTls: boolean;
+    } | null;
+  }> {
     try {
       const sdk = await this.runtime.ready();
       const state = this.runtime.getState();
       const ready = sdk.ls.isReady && sdk.ls.hasCsrfToken;
+      const selectedConnection = this.runtime.getSelectedConnection();
       return {
         initialized: state.initialized,
         ready,
         port: sdk.ls.port,
         hasCsrfToken: sdk.ls.hasCsrfToken,
+        discovery: this.discovery,
+        selectedConnection: selectedConnection
+          ? {
+            workspacePath: selectedConnection.workspacePath,
+            workspaceIdHint: selectedConnection.workspaceIdHint,
+            port: selectedConnection.port,
+            useTls: selectedConnection.useTls,
+          }
+          : null,
       };
     } catch {
       const state = this.runtime.getState();
@@ -289,6 +325,8 @@ class AntigravitySdkMonitoringService implements MonitoringService {
         ready: false,
         port: null,
         hasCsrfToken: false,
+        discovery: this.discovery,
+        selectedConnection: null,
       };
     }
   }
@@ -378,9 +416,10 @@ class AntigravitySdkLegacySendService implements LegacySendService {
 export function createBridgeServices(
   context: vscode.ExtensionContext,
   executeCommand: CommandExecutor,
+  discovery: BridgeDiscoveryMetadata,
 ): BridgeServices {
   const runtime = new SdkRuntime(context);
-  const monitoring = new AntigravitySdkMonitoringService(runtime, executeCommand);
+  const monitoring = new AntigravitySdkMonitoringService(runtime, executeCommand, discovery);
 
   return {
     conversation: new AntigravitySdkConversationService(runtime, executeCommand),
@@ -413,6 +452,8 @@ interface WorkspaceLsConnection {
   port: number;
   csrfToken: string;
   useTls: boolean;
+  workspacePath: string;
+  workspaceIdHint: string;
 }
 
 async function discoverWorkspaceLsConnections(
@@ -429,6 +470,7 @@ async function discoverWorkspaceLsConnections(
   for (const workspaceFolder of preferredFolders) {
     const normalizedPath = workspaceFolder.uri.fsPath.replace(/^[/\\]+/, "");
     const workspaceIdHint = `file_${normalizedPath.replace(/[\\/.:\-\s]/g, "_")}`;
+    const workspacePath = workspaceFolder.uri.fsPath;
     const processInfo = await findWorkspaceLsProcess(workspaceIdHint);
     if (!processInfo) {
       continue;
@@ -436,7 +478,11 @@ async function discoverWorkspaceLsConnections(
 
     const connectPort = await findWorkspaceConnectPort(processInfo.pid, processInfo.extPort, processInfo.csrfToken);
     if (connectPort) {
-      connections.push(connectPort);
+      connections.push({
+        ...connectPort,
+        workspacePath,
+        workspaceIdHint,
+      });
       continue;
     }
 
@@ -445,6 +491,8 @@ async function discoverWorkspaceLsConnections(
         port: processInfo.extPort,
         csrfToken: processInfo.csrfToken,
         useTls: false,
+        workspacePath,
+        workspaceIdHint,
       });
     }
   }
@@ -556,7 +604,7 @@ async function findWorkspaceConnectPort(
   pid: number,
   extPort: number,
   csrfToken: string,
-): Promise<WorkspaceLsConnection | null> {
+): Promise<Pick<WorkspaceLsConnection, "port" | "csrfToken" | "useTls"> | null> {
   try {
     const { stdout } = await execFileAsync("lsof", ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN"], {
       timeout: 5000,

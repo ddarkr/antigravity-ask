@@ -24,7 +24,9 @@ After installation, you can verify it immediately in an environment where the br
 npx antigravity-ask ping
 ```
 
-The default bridge URL is `http://localhost:5820`.
+Without an explicit override, the CLI resolves the bridge from the current working directory, opens that folder as a workspace if needed, and waits for the matching bridge to become ready.
+
+Auto-discovery supports single-folder workspaces only. Opening the same folder in multiple windows is unsupported and returns an ambiguity error.
 
 ## Golden path
 
@@ -42,12 +44,12 @@ npx antigravity-ask conversation <conversation_id>
 
 ## URL overrides
 
-The CLI resolves the base URL in the following order.
+The CLI resolves the target bridge in the following order.
 
 1. `--url <baseUrl>`
 2. `--http-port <port>`
 3. `AG_BRIDGE_URL`
-4. `http://localhost:5820`
+4. current working directory workspace discovery
 
 Examples:
 
@@ -88,6 +90,13 @@ npx antigravity-ask action terminal_run
 ```
 
 Canonical action/path contracts live in `src/contracts/bridge.ts`.
+
+## Workspace discovery
+
+- the CLI canonicalizes `process.cwd()` and looks for a matching live bridge instance
+- if no bridge is found, it opens the current folder with `antigravity --new-window <cwd>`
+- it waits for both `/ping` discovery metadata and `/lsstatus` readiness before sending chat requests
+- same-folder multi-window is unsupported; close duplicates or use `--url`
 
 ## From source
 

@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { BRIDGE_ACTIONS } from "antigravity-ask";
+import { type BridgeDiscoveryMetadata } from "antigravity-ask";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { WebSocketServer } from "ws";
@@ -33,17 +34,18 @@ export function createBridgeServer(options: {
   context: vscode.ExtensionContext;
   httpPort: number;
   wsPort: number;
+  discovery: BridgeDiscoveryMetadata;
 }): BridgeServers {
   const app = new Hono();
   const executeCommand = <T = unknown>(command: string, ...args: unknown[]): Promise<T> => {
     return Promise.resolve(vscode.commands.executeCommand<T>(command, ...args));
   };
-  const services = createBridgeServices(options.context, executeCommand);
+  const services = createBridgeServices(options.context, executeCommand, options.discovery);
 
   app.use("*", cors());
 
   // 1. Health check
-  app.get("/ping", (c) => c.json({ status: "ok", mode: "native_api" }));
+  app.get("/ping", (c) => c.json({ status: "ok", mode: "native_api", discovery: options.discovery }));
 
   // LS Bridge status
   app.get("/lsstatus", async (c) => {

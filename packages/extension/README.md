@@ -52,8 +52,10 @@ If you changed the configured bridge port, replace `5820` with your active HTTP 
 Expected response:
 
 ```json
-{"status":"ok","mode":"native_api"}
+{"status":"ok","mode":"native_api","discovery":{"supported":true,"instanceId":"...","workspacePath":"/abs/path","protocolVersion":1}}
 ```
+
+The bridge now publishes discovery metadata for single-folder workspaces so the CLI can verify that the current folder matches the correct extension window. Multi-root windows still expose the bridge, but workspace auto-discovery is reported as unsupported.
 
 ## Commands
 
@@ -84,6 +86,8 @@ The local bridge exposes endpoints including:
 For a structured API reference, see <https://github.com/ddarkr/antigravity-ask/blob/main/docs/extension-api.openapi.yaml>.
 
 The OpenAPI document covers the HTTP bridge surface and distinguishes the diagnostics/debug endpoints from the main automation endpoints.
+
+`/lsstatus` now includes both discovery metadata and the currently selected LS connection summary so workspace-scoped CLI discovery can wait for the right bridge to become ready.
 
 ## Security and scope
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Antigravity Ask Bridge Extension API
-  version: 0.1.5
+  version: 0.2.0
   summary: Local HTTP API exposed by the Antigravity Ask Bridge VS Code extension.
   description: |
     This OpenAPI document describes the local HTTP API exposed by the Antigravity Ask Bridge extension.
@@ -418,7 +418,7 @@ components:
   schemas:
     PingResponse:
       type: object
-      required: [status, mode]
+      required: [status, mode, discovery]
       properties:
         status:
           type: string
@@ -426,9 +426,11 @@ components:
         mode:
           type: string
           const: native_api
+        discovery:
+          $ref: '#/components/schemas/BridgeDiscoveryMetadata'
     LsStatusResponse:
       type: object
-      required: [initialized, ready, port, hasCsrfToken]
+      required: [initialized, ready, port, hasCsrfToken, discovery, selectedConnection]
       properties:
         initialized:
           type: boolean
@@ -439,6 +441,46 @@ components:
             - integer
             - 'null'
         hasCsrfToken:
+          type: boolean
+        discovery:
+          $ref: '#/components/schemas/BridgeDiscoveryMetadata'
+        selectedConnection:
+          oneOf:
+            - $ref: '#/components/schemas/SelectedLsConnection'
+            - type: 'null'
+    BridgeDiscoveryMetadata:
+      type: object
+      required: [protocolVersion, supported, instanceId, workspacePath]
+      properties:
+        protocolVersion:
+          type: integer
+          const: 1
+        supported:
+          type: boolean
+        instanceId:
+          type:
+            - string
+            - 'null'
+        workspacePath:
+          type:
+            - string
+            - 'null'
+        unsupportedReason:
+          type: string
+          enum:
+            - no_workspace
+            - multi_root_workspace
+    SelectedLsConnection:
+      type: object
+      required: [workspacePath, workspaceIdHint, port, useTls]
+      properties:
+        workspacePath:
+          type: string
+        workspaceIdHint:
+          type: string
+        port:
+          type: integer
+        useTls:
           type: boolean
     TextRequest:
       type: object

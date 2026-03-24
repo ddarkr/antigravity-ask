@@ -1,8 +1,6 @@
-const DEFAULT_BRIDGE_URL = "http://localhost:5820";
-
 export interface CliConfigResult {
   args: string[];
-  baseUrl: string;
+  explicitBaseUrl?: string;
 }
 
 export function resolveCliConfig(
@@ -40,17 +38,17 @@ export function resolveCliConfig(
   }
 
   if (urlOverride) {
-    return { args, baseUrl: urlOverride };
+    return { args, explicitBaseUrl: urlOverride };
   }
 
   if (portOverride !== undefined) {
-    return { args, baseUrl: `http://localhost:${portOverride}` };
+    return { args, explicitBaseUrl: `http://localhost:${portOverride}` };
   }
 
   const envUrl = env.AG_BRIDGE_URL;
   return {
     args,
-    baseUrl: normalizeBaseUrl(envUrl || DEFAULT_BRIDGE_URL),
+    explicitBaseUrl: envUrl ? normalizeBaseUrl(envUrl) : undefined,
   };
 }
 

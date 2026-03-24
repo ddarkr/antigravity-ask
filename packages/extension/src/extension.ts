@@ -7,8 +7,13 @@ import {
   getBridgeStatusPresentation,
   type BridgeConfig,
 } from "./bridge-config";
+import {
+  createBridgeDiscoveryState,
+  type BridgeDiscoveryState,
+} from "./bridge-discovery";
 
 let bridge: BridgeServers | null = null;
+let bridgeDiscovery: BridgeDiscoveryState | null = null;
 
 interface PortInspect {
   workspaceValue?: number;
@@ -21,11 +26,19 @@ export function activate(context: vscode.ExtensionContext): void {
   restoreLegacyPatchedFiles();
 
   const config = loadBridgeConfig();
+  bridgeDiscovery = createBridgeDiscoveryState({
+    workspacePaths: (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath),
+    httpPort: config.httpPort,
+    wsPort: config.wsPort,
+  });
+
   if (config.enabled) {
     bridge = createBridgeServer({
       context,
       ...config,
+      discovery: bridgeDiscovery.discovery,
     });
+    bridgeDiscovery.publish();
   }
 
   registerStatusBar(context, config);
@@ -38,6 +51,8 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
   bridge?.close();
   bridge = null;
+  bridgeDiscovery?.dispose();
+  bridgeDiscovery = null;
   console.log("[Bridge] Extension deactivated");
 }
 
@@ -164,6 +179,9 @@ function registerCommands(
 
 function registerCleanup(context: vscode.ExtensionContext): void {
   context.subscriptions.push({
-    dispose: () => bridge?.close(),
+    dispose: () => {
+      bridge?.close();
+      bridgeDiscovery?.dispose();
+    },
   });
 }

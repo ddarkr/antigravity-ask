@@ -14,8 +14,9 @@ npx antigravity-ask send "Open a new chat and say hello"
 npx antigravity-ask conversation <conversation_id>
 ```
 
-- Default bridge URL: `http://localhost:5820`
 - Override options: `--url`, `--http-port`, `AG_BRIDGE_URL`
+- Without an explicit override, the CLI resolves the bridge from the current working directory, opens that folder as a workspace when needed, and waits for the matching bridge to become ready.
+- Auto-discovery currently supports single-folder workspaces only. Opening the same folder in multiple windows is unsupported.
 - Detailed guide for coding agents: `docs/cli-for-agents.md`
 
 This project runs a bridge server inside Antigravity IDE so external CLIs and other agents can send prompts, inspect conversation state, and read saved artifacts.
@@ -75,7 +76,7 @@ pnpm exec antigravity-ask ping
 pnpm exec antigravity-ask ask "hello"
 ```
 
-The default bridge URL is `http://localhost:5820`, and you can override it with `AG_BRIDGE_URL` when needed.
+The CLI prefers explicit overrides first. Without one, it resolves the bridge from the current working directory and launches that folder in VS Code when no matching bridge is already running.
 
 ```bash
 npx antigravity-ask ask <text>
