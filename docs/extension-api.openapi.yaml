@@ -1,0 +1,557 @@
+openapi: 3.1.0
+info:
+  title: Antigravity Ask Bridge Extension API
+  version: 0.1.4
+  summary: Local HTTP API exposed by the Antigravity Ask Bridge VS Code extension.
+  description: |
+    This OpenAPI document describes the local HTTP API exposed by the Antigravity Ask Bridge extension.
+
+    The API is intended for local automation, external CLIs, and coding agents running on a trusted machine.
+    It does not describe the WebSocket server. The WebSocket endpoint is currently used only for a minimal
+    `bridge_ready` event and is not documented as a stable public API.
+servers:
+  - url: http://127.0.0.1:{port}
+    description: Local bridge server. The port can vary by workspace and configuration.
+    variables:
+      port:
+        default: '5820'
+        description: Default HTTP port when no workspace-derived or explicit override is applied.
+tags:
+  - name: Health
+  - name: Conversations
+  - name: Actions
+  - name: Artifacts
+  - name: Diagnostics
+    description: Debug and diagnostics endpoints that may be less stable than the core automation API.
+paths:
+  /ping:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getPing
+      responses:
+        '200':
+          description: Bridge is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+  /lsstatus:
+    get:
+      tags: [Health]
+      summary: Get LS bridge status
+      operationId: getLsStatus
+      responses:
+        '200':
+          description: Current SDK LS readiness state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LsStatusResponse'
+  /send:
+    post:
+      tags: [Conversations]
+      summary: Send a prompt through the legacy native command path
+      description: |
+        Opens a new conversation and sends the given text through the legacy native API flow.
+        Prefer `/chat` for current headless conversation creation.
+      operationId: postSendLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextRequest'
+      responses:
+        '200':
+          description: Prompt accepted by the legacy flow.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacySendResponse'
+        '400':
+          description: Missing text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Bridge command execution failed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      attempted_command:
+                        type: string
+                      error_dump:
+                        type: string
+  /action:
+    post:
+      tags: [Actions]
+      summary: Execute a bridge action
+      operationId: postAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Action executed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Invalid action type or unsupported action usage.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Action execution failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /artifacts:
+    get:
+      tags: [Artifacts]
+      summary: List stored conversation artifact directories
+      operationId: getArtifacts
+      responses:
+        '200':
+          description: Artifact directories found under the local bridge artifact store.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [conversations]
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConversationSummary'
+        '500':
+          description: Failed to read the artifact directory.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /artifacts/{convoId}:
+    get:
+      tags: [Artifacts]
+      summary: Read a single artifact file
+      operationId: getArtifactByConversationId
+      parameters:
+        - name: convoId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          description: |
+            Relative artifact path to read. The current implementation enforces the global artifact-root boundary,
+            but does not strictly restrict reads to the `{convoId}` directory alone.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Artifact file content.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Missing `path` query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Artifact not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Artifact lookup failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /chat:
+    post:
+      tags: [Conversations]
+      summary: Create a headless conversation and send a prompt
+      operationId: postChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Headless conversation created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationCreatedResponse'
+        '400':
+          description: Missing text.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Conversation creation failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /conversation/{id}:
+    get:
+      tags: [Conversations]
+      summary: Get a conversation trajectory
+      operationId: getConversationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Raw conversation trajectory returned by the SDK LS RPC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseObject'
+        '500':
+          description: Failed to fetch the conversation trajectory.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /list-cascades:
+    get:
+      tags: [Conversations]
+      summary: List known cascades
+      operationId: getListCascades
+      responses:
+        '200':
+          description: A map keyed by cascade id.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/CascadeSummary'
+        '500':
+          description: Failed to list cascades.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /focus/{id}:
+    post:
+      tags: [Conversations]
+      summary: Focus an existing conversation in the UI
+      operationId: postFocusConversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation focused.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          description: Failed to focus the conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /openchat/{id}:
+    post:
+      tags: [Conversations]
+      summary: Open an existing conversation in the Antigravity UI
+      operationId: postOpenChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation opened.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, focusedId]
+                properties:
+                  success:
+                    type: boolean
+                    const: true
+                  focusedId:
+                    type: string
+        '500':
+          description: Failed to open the conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /dump:
+    get:
+      tags: [Diagnostics]
+      summary: List Antigravity-related VS Code commands
+      operationId: getDumpCommands
+      responses:
+        '200':
+          description: Matching command ids.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [commands]
+                properties:
+                  commands:
+                    type: array
+                    items:
+                      type: string
+  /dump-ls:
+    get:
+      tags: [Diagnostics]
+      summary: Return LS debug summary
+      operationId: getDumpLs
+      responses:
+        '200':
+          description: Debug summary for the LS bridge.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lsBridge, diagnostics]
+                properties:
+                  lsBridge:
+                    type: object
+                    properties:
+                      isReady:
+                        type: boolean
+                      port:
+                        type:
+                          - integer
+                          - 'null'
+                      hasCsrfToken:
+                        type: boolean
+                  diagnostics:
+                    $ref: '#/components/schemas/LooseObject'
+  /dump-diag-keys:
+    get:
+      tags: [Diagnostics]
+      summary: Explore diagnostics key structure
+      operationId: getDumpDiagKeys
+      responses:
+        '200':
+          description: Flattened diagnostics key paths.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys, topLevel]
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: string
+                  topLevel:
+                    type: array
+                    items:
+                      type: string
+        '500':
+          description: Diagnostics data unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /probe-csrf:
+    get:
+      tags: [Diagnostics]
+      summary: Probe specific Antigravity commands for debug purposes
+      operationId: getProbeCsrf
+      responses:
+        '200':
+          description: Per-command probe results.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  oneOf:
+                    - type: object
+                      properties:
+                        error:
+                          type: string
+                    - type: string
+                    - type: number
+                    - type: boolean
+                    - type: array
+                      items: {}
+                    - type: object
+                      additionalProperties: true
+                    - type: 'null'
+components:
+  schemas:
+    PingResponse:
+      type: object
+      required: [status, mode]
+      properties:
+        status:
+          type: string
+          const: ok
+        mode:
+          type: string
+          const: native_api
+    LsStatusResponse:
+      type: object
+      required: [initialized, ready, port, hasCsrfToken]
+      properties:
+        initialized:
+          type: boolean
+        ready:
+          type: boolean
+        port:
+          type:
+            - integer
+            - 'null'
+        hasCsrfToken:
+          type: boolean
+    TextRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+    ChatRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+        model:
+          type: integer
+          description: Optional Antigravity model id. Defaults to `Models.GEMINI_FLASH`.
+    ActionRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum:
+            - start_new_chat
+            - focus_chat
+            - accept_step
+            - allow
+            - reject_step
+            - terminal_run
+            - switch_chat
+    ActionResponse:
+      type: object
+      required: [success, action]
+      properties:
+        success:
+          type: boolean
+          const: true
+        action:
+          type: string
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    ConversationCreatedResponse:
+      type: object
+      required: [success, conversation_id]
+      properties:
+        success:
+          type: boolean
+          const: true
+        conversation_id:
+          type: string
+    LegacySendResponse:
+      type: object
+      required: [success, conversation_id, method, debug_info]
+      properties:
+        success:
+          type: boolean
+          const: true
+        conversation_id:
+          type:
+            - string
+            - 'null'
+        method:
+          type: string
+          const: native_api
+        debug_info:
+          type: object
+          required:
+            - attempted_command
+            - command_exists
+            - polled_trajectories_count
+            - before_ids_count
+            - last_trajectories
+          properties:
+            attempted_command:
+              type: string
+            command_exists:
+              type: boolean
+            polled_trajectories_count:
+              type: integer
+            before_ids_count:
+              type: integer
+            last_trajectories:
+              type: string
+    ConversationSummary:
+      type: object
+      required: [id, hasArtifacts, files]
+      properties:
+        id:
+          type: string
+        hasArtifacts:
+          type: boolean
+        files:
+          type: array
+          items:
+            type: string
+    CascadeSummary:
+      type: object
+      properties:
+        trajectoryId:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    LooseObject:
+      type: object
+      additionalProperties: true

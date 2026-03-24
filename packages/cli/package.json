@@ -5,12 +5,20 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ddarkr/antigravity-ask.git"
+    "url": "git+https://github.com/ddarkr/antigravity-ask.git",
+    "directory": "packages/cli"
   },
   "homepage": "https://github.com/ddarkr/antigravity-ask",
   "bugs": {
     "url": "https://github.com/ddarkr/antigravity-ask/issues"
   },
+  "keywords": [
+    "antigravity",
+    "cli",
+    "automation",
+    "agent",
+    "bridge"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -29,8 +37,11 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('fs').rmSync('dist',{ recursive: true, force: true })\" && tsc -p tsconfig.json",
     "test": "vitest run --passWithNoTests"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

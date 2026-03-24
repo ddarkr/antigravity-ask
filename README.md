@@ -1,11 +1,52 @@
 # Antigravity Ask Bridge
 
-Antigravity IDE 안에 브릿지 서버를 띄워서 외부 CLI나 다른 에이전트가 대화를 전송하고, 대화 상태를 조회하고, 아티팩트를 읽을 수 있게 해주는 프로젝트입니다.
+The most convenient way to control Antigravity is to enable the bridge extension first and then use `antigravity-ask`.
+
+```bash
+# 1) Check that the bridge is running
+npx antigravity-ask ping
+
+# 2) Send one request and wait for the final response
+npx antigravity-ask ask "Summarize the current bridge architecture."
+
+# 3) Send asynchronously, get a conversation_id, and inspect it later
+npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask conversation <conversation_id>
+```
+
+- Default bridge URL: `http://localhost:5820`
+- Override options: `--url`, `--http-port`, `AG_BRIDGE_URL`
+- Detailed guide for coding agents: `docs/cli-for-agents.md`
+
+This project runs a bridge server inside Antigravity IDE so external CLIs and other agents can send prompts, inspect conversation state, and read saved artifacts.
+
+## Quick start
+
+### Use the published CLI
+
+```bash
+npx antigravity-ask ping
+```
+
+### Build from source
+
+```bash
+pnpm install
+pnpm --filter antigravity-ask build
+pnpm exec antigravity-ask --help
+```
 
 ## Packages
 
-- `packages/extension` — VS Code extension host. Hono HTTP/WebSocket 서버, SDK-backed bridge services, artifact access를 담당합니다.
-- `packages/cli` — publishable CLI package. 패키지명은 `antigravity-ask`, 실행 파일은 `antigravity-ask`입니다.
+- `packages/extension` — VS Code extension host. It owns the Hono HTTP/WebSocket server, SDK-backed bridge services, and artifact access.
+- `packages/cli` — publishable CLI package. The package name is `antigravity-ask` and the executable is also `antigravity-ask`.
+
+For package-specific release and usage documentation, start here:
+
+- CLI package docs: `packages/cli/README.md`
+- Extension docs: `packages/extension/README.md`
+- Release automation: `docs/release-automation.md`
+- Agent-focused CLI guide: `docs/cli-for-agents.md`
 
 ## Development
 
@@ -16,25 +57,25 @@ pnpm --filter antigravity-ask build
 pnpm --filter antigravity-bridge-extension build
 ```
 
-VS Code에서 extension을 실행할 때는 `packages/extension`을 Extension Host로 띄우면 됩니다.
+To run the extension in VS Code, launch `packages/extension` in an Extension Host.
 
-## CLI
+## CLI reference
 
-CLI는 `packages/cli`에서 빌드됩니다. fresh clone 직후에는 `dist/`가 없으므로 아래 명령을 실행하기 전에 먼저 `pnpm --filter antigravity-ask build`를 실행해야 합니다.
+The CLI is built from `packages/cli`. On a fresh clone, `dist/` does not exist yet, so run `pnpm --filter antigravity-ask build` before using the commands below.
 
 ```bash
 pnpm --filter antigravity-ask build
 pnpm exec antigravity-ask --help
 ```
 
-테스트용으로는 루트에서 바로 아래처럼 실행하면 됩니다.
+For quick local testing from the repository root, run:
 
 ```bash
 pnpm exec antigravity-ask ping
 pnpm exec antigravity-ask ask "hello"
 ```
 
-기본 브릿지 주소는 `http://localhost:5820`이고, 필요하면 `AG_BRIDGE_URL`로 변경할 수 있습니다.
+The default bridge URL is `http://localhost:5820`, and you can override it with `AG_BRIDGE_URL` when needed.
 
 ```bash
 antigravity-ask ask <text>
@@ -51,6 +92,10 @@ antigravity-ask artifact <id> <path>
 If you want to drive Antigravity from a coding agent, start with `docs/cli-for-agents.md`.
 
 Use `antigravity-ask ping` to verify connectivity before calling `ask` or `send`.
+
+## Contributing
+
+See `CONTRIBUTING.md` for contribution guidelines and development expectations.
 
 ## Verification
 

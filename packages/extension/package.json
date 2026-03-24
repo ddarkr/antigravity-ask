@@ -9,7 +9,8 @@
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ddarkr/antigravity-ask.git"
+    "url": "git+https://github.com/ddarkr/antigravity-ask.git",
+    "directory": "packages/extension"
   },
   "homepage": "https://github.com/ddarkr/antigravity-ask",
   "bugs": {
