@@ -7,6 +7,7 @@ import {
 import type { BridgeHttpClient } from "./http";
 
 export interface AskOptions {
+  model?: number;
   pollIntervalMs?: number;
   onPoll?: () => void;
   onPollError?: (error: unknown) => void;
@@ -23,7 +24,7 @@ export async function waitForAskResponse(
   text: string,
   options: AskOptions = {},
 ): Promise<AskResult> {
-  const sendResult = await client.chat(text);
+  const sendResult = await client.chat(text, options.model);
 
   if (!sendResult.success || !sendResult.conversation_id) {
     throw new Error("Failed to obtain conversation_id after sending.");

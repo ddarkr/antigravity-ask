@@ -15,8 +15,8 @@ export interface BridgeRequestOptions {
 export interface BridgeHttpClient {
   request: <T>(path: string, options?: BridgeRequestOptions) => Promise<T>;
   ping: () => Promise<unknown>;
-  send: (text: string) => Promise<SendResponse>;
-  chat: (text: string) => Promise<SendResponse>;
+  send: (text: string, model?: number) => Promise<SendResponse>;
+  chat: (text: string, model?: number) => Promise<SendResponse>;
   listCascades: () => Promise<CascadeStatusMap>;
   getConversation: (conversationId: string) => Promise<ConversationData>;
   runAction: (type: BridgeAction) => Promise<unknown>;
@@ -57,13 +57,13 @@ export function createBridgeHttpClient(baseUrl: string): BridgeHttpClient {
   return {
     request,
     ping: () => request(BRIDGE_PATHS.ping),
-    send: (text) => request<SendResponse>(BRIDGE_PATHS.chat, {
+    send: (text, model) => request<SendResponse>(BRIDGE_PATHS.chat, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, model }),
     }),
-    chat: (text) => request<SendResponse>(BRIDGE_PATHS.chat, {
+    chat: (text, model) => request<SendResponse>(BRIDGE_PATHS.chat, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, model }),
     }),
     listCascades: () => request<CascadeStatusMap>(BRIDGE_PATHS.listCascades),
     getConversation: (conversationId) =>
