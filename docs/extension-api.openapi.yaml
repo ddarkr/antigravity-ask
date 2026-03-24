@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Antigravity Ask Bridge Extension API
-  version: 0.1.4
+  version: 0.1.5
   summary: Local HTTP API exposed by the Antigravity Ask Bridge VS Code extension.
   description: |
     This OpenAPI document describes the local HTTP API exposed by the Antigravity Ask Bridge extension.
