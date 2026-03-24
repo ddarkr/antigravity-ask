@@ -6,6 +6,7 @@ describe("cli-config", () => {
     expect(resolveCliConfig(["ping"], {})).toEqual({
       args: ["ping"],
       explicitBaseUrl: undefined,
+      variant: undefined,
     });
   });
 
@@ -13,6 +14,7 @@ describe("cli-config", () => {
     expect(resolveCliConfig(["ping"], { AG_BRIDGE_URL: "http://127.0.0.1:6000/" })).toEqual({
       args: ["ping"],
       explicitBaseUrl: "http://127.0.0.1:6000",
+      variant: undefined,
     });
   });
 
@@ -20,6 +22,7 @@ describe("cli-config", () => {
     expect(resolveCliConfig(["ping", "--http-port", "6000"], {})).toEqual({
       args: ["ping"],
       explicitBaseUrl: "http://localhost:6000",
+      variant: undefined,
     });
   });
 
@@ -27,6 +30,7 @@ describe("cli-config", () => {
     expect(resolveCliConfig(["--url", "http://127.0.0.1:7000/", "ping"], { AG_BRIDGE_URL: "http://localhost:6000" })).toEqual({
       args: ["ping"],
       explicitBaseUrl: "http://127.0.0.1:7000",
+      variant: undefined,
     });
   });
 
@@ -34,12 +38,27 @@ describe("cli-config", () => {
     expect(resolveCliConfig(["ping", "--url", "http://localhost:7000", "--http-port", "7001"], {})).toEqual({
       args: ["ping"],
       explicitBaseUrl: "http://localhost:7000",
+      variant: undefined,
+    });
+  });
+
+  it("parses the variant option", () => {
+    expect(resolveCliConfig(["ask", "--variant", "pro", "hello"], {})).toEqual({
+      args: ["ask", "hello"],
+      explicitBaseUrl: undefined,
+      variant: "pro",
     });
   });
 
   it("rejects an invalid port value", () => {
     expect(() => resolveCliConfig(["ping", "--http-port", "abc"], {})).toThrow(
       "Invalid --http-port value: abc",
+    );
+  });
+
+  it("rejects a missing variant value", () => {
+    expect(() => resolveCliConfig(["ask", "--variant"], {})).toThrow(
+      "Missing value for --variant",
     );
   });
 });

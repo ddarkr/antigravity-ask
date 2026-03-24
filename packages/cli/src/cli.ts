@@ -9,6 +9,7 @@ import {
 } from "./index";
 import { resolveBridgeBaseUrl } from "./bridge-resolver";
 import { resolveCliConfig } from "./cli-config";
+import { MODEL_VARIANTS, parseModelVariant } from "./model-variant";
 
 async function main(): Promise<void> {
   const config = resolveCliConfig(process.argv.slice(2), process.env);
@@ -22,6 +23,7 @@ Antigravity Ask Bridge CLI
 Global Options:
   --url <baseUrl>                        Override the full bridge base URL
   --http-port <port>                    Override the bridge HTTP port on localhost
+  --variant <name>                      Select model variant for ask/send (${Object.keys(MODEL_VARIANTS).join(", ")})
 
 Commands:
   ask <text>                             Send a prompt and wait until the agent finishes to print the response
@@ -41,6 +43,7 @@ Aliases (Legacy):
   }
 
   try {
+    const selectedModel = parseModelVariant(config.variant);
     const resolvedBridge = await resolveBridgeBaseUrl({
       cwd: process.cwd(),
       explicitBaseUrl: config.explicitBaseUrl,
@@ -57,7 +60,7 @@ Aliases (Legacy):
         }
 
         console.log("Sending prompt...");
-        const result = await client.send(text);
+        const result = await client.send(text, selectedModel);
         console.log(JSON.stringify(result, null, 2));
         break;
       }
@@ -72,6 +75,7 @@ Aliases (Legacy):
         console.error("Waiting for agent response...");
 
         const askResult = await waitForAskResponse(client, text, {
+          model: selectedModel,
           onPoll: () => process.stderr.write("."),
         });
 

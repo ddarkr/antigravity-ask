@@ -1,6 +1,7 @@
 export interface CliConfigResult {
   args: string[];
   explicitBaseUrl?: string;
+  variant?: string;
 }
 
 export function resolveCliConfig(
@@ -10,6 +11,7 @@ export function resolveCliConfig(
   const args: string[] = [];
   let urlOverride: string | undefined;
   let portOverride: number | undefined;
+  let variant: string | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
@@ -34,21 +36,32 @@ export function resolveCliConfig(
       continue;
     }
 
+    if (value === "--variant") {
+      const nextValue = argv[index + 1];
+      if (!nextValue) {
+        throw new Error("Missing value for --variant");
+      }
+      variant = nextValue;
+      index += 1;
+      continue;
+    }
+
     args.push(value);
   }
 
   if (urlOverride) {
-    return { args, explicitBaseUrl: urlOverride };
+    return { args, explicitBaseUrl: urlOverride, variant };
   }
 
   if (portOverride !== undefined) {
-    return { args, explicitBaseUrl: `http://localhost:${portOverride}` };
+    return { args, explicitBaseUrl: `http://localhost:${portOverride}`, variant };
   }
 
   const envUrl = env.AG_BRIDGE_URL;
   return {
     args,
     explicitBaseUrl: envUrl ? normalizeBaseUrl(envUrl) : undefined,
+    variant,
   };
 }
 
