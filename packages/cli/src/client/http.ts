@@ -3,6 +3,7 @@ import {
   BRIDGE_PATHS,
   type CascadeStatusMap,
   type SendResponse,
+  type ChatJobResponse,
 } from "../contracts/bridge";
 import type { ConversationData } from "../contracts/conversation";
 
@@ -15,8 +16,9 @@ export interface BridgeRequestOptions {
 export interface BridgeHttpClient {
   request: <T>(path: string, options?: BridgeRequestOptions) => Promise<T>;
   ping: () => Promise<unknown>;
-  send: (text: string, model?: number) => Promise<SendResponse>;
-  chat: (text: string, model?: number) => Promise<SendResponse>;
+  send: (text: string, model?: string | number) => Promise<SendResponse>;
+  chat: (text: string, model?: string | number) => Promise<SendResponse>;
+  getJobStatus: (jobId: string) => Promise<ChatJobResponse>;
   listCascades: () => Promise<CascadeStatusMap>;
   getConversation: (conversationId: string) => Promise<ConversationData>;
   runAction: (type: BridgeAction) => Promise<unknown>;
@@ -65,6 +67,7 @@ export function createBridgeHttpClient(baseUrl: string): BridgeHttpClient {
       method: "POST",
       body: JSON.stringify({ text, model }),
     }),
+    getJobStatus: (jobId) => request<ChatJobResponse>(BRIDGE_PATHS.chatJob(jobId)),
     listCascades: () => request<CascadeStatusMap>(BRIDGE_PATHS.listCascades),
     getConversation: (conversationId) =>
       request<ConversationData>(BRIDGE_PATHS.conversation(conversationId)),

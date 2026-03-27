@@ -2,6 +2,7 @@ export const BRIDGE_PATHS = {
   ping: "/ping",
   send: "/chat",
   chat: "/chat",
+  chatJob: (jobId: string) => `/chat/${jobId}`,
   action: "/action",
   listCascades: "/list-cascades",
   artifacts: "/artifacts",
@@ -28,7 +29,16 @@ export function isBridgeAction(value: string): value is BridgeAction {
 
 export interface SendResponse {
   success?: boolean;
+  job_id?: string;
   conversation_id?: string;
+}
+
+export interface ChatJobResponse {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  conversation_id?: string;
+  error?: string;
+  created_at?: string;
 }
 
 export interface CascadeStatusEntry {
