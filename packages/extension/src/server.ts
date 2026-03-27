@@ -186,18 +186,31 @@ export function createBridgeServer(options: {
         return c.json({ error: "Text is required" }, 400);
       }
       
-      const cascadeId = await services.conversation.createHeadlessConversation(
-        body.text,
-        body.model || Models.GEMINI_FLASH,
-      );
-      
-      if (!cascadeId) {
-        return c.json({ error: "Failed to create headless cascade (is SDK LS connection ready?)" }, 500);
-      }
-      
-      return c.json({ success: true, conversation_id: cascadeId });
+      const jobId = await services.chatQueue.enqueue(body.text, body.model);
+      return c.json({ success: true, job_id: jobId });
     } catch (e: any) {
       console.error("[Bridge] POST /chat failed:", e);
+      return c.json({ error: e.message || String(e) }, 500);
+    }
+  });
+
+  app.get("/chat/:jobId", async (c) => {
+    try {
+      const jobId = c.req.param("jobId");
+      const job = await services.chatQueue.getJob(jobId);
+      
+      if (!job) {
+        return c.json({ error: "Job not found" }, 404);
+      }
+      
+      return c.json({
+        id: job.id,
+        status: job.status,
+        conversation_id: job.conversationId,
+        error: job.error,
+        created_at: job.createdAt,
+      });
+    } catch (e: any) {
       return c.json({ error: e.message || String(e) }, 500);
     }
   });
@@ -255,6 +268,15 @@ export function createBridgeServer(options: {
       return c.text(content);
     } catch (e: any) {
       return c.json({ error: e.message }, 500);
+    }
+  });
+
+  app.get("/models", async (c) => {
+    try {
+      const models = await services.monitoring.getModels();
+      return c.json(models);
+    } catch (e: any) {
+      return c.json({ error: `LS GetCascadeModelConfigs: ${e.message}` }, 500);
     }
   });
 

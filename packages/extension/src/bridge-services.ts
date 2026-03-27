@@ -78,10 +78,27 @@ export interface MonitoringService {
   }>;
   getDiagnosticsRaw(): Promise<string>;
   getDiagnostics(): Promise<BridgeDiagnostics | null>;
+  getModels(): Promise<unknown>;
 }
 
 export interface LegacySendService {
   sendPromptToNewConversation(text: string): Promise<LegacySendResult>;
+}
+
+export interface ChatJob {
+  id: string;
+  text: string;
+  model?: ModelId;
+  status: "pending" | "processing" | "completed" | "failed";
+  conversationId?: string;
+  error?: string;
+  createdAt: Date;
+}
+
+export interface ChatQueueService {
+  enqueue(text: string, model?: ModelId): Promise<string>;
+  getJob(jobId: string): Promise<ChatJob | null>;
+  getJobResult(jobId: string): Promise<unknown | null>;
 }
 
 export interface BridgeServices {
@@ -89,6 +106,7 @@ export interface BridgeServices {
   actions: ActionService;
   monitoring: MonitoringService;
   legacySend: LegacySendService;
+  chatQueue: ChatQueueService;
 }
 
 class SdkRuntime {
@@ -372,6 +390,37 @@ class AntigravitySdkMonitoringService implements MonitoringService {
   async getDiagnostics(): Promise<BridgeDiagnostics | null> {
     return getBridgeDiagnostics(this.executeCommand);
   }
+
+  async getModels(): Promise<unknown> {
+    const sdk = await this.runtime.ready();
+    const candidates = this.runtime.getCandidateConnections();
+
+    const debugInfo = {
+      port: sdk.ls.port,
+      hasCsrfToken: sdk.ls.hasCsrfToken,
+      isReady: sdk.ls.isReady,
+      candidatesCount: candidates.length,
+      candidates: candidates.map(c => ({ port: c.port, hasCsrfToken: !!c.csrfToken, useTls: c.useTls })),
+    };
+
+    try {
+      if (candidates.length > 0) {
+        for (const connection of candidates) {
+          sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
+          try {
+            const models = await sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true });
+            return { debug: debugInfo, models };
+          } catch (error) {
+            return { debug: debugInfo, error: String(error) };
+          }
+        }
+      }
+      const models = await sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true });
+      return { debug: debugInfo, models };
+    } catch (error) {
+      return { debug: debugInfo, error: String(error) };
+    }
+  }
 }
 
 class AntigravitySdkLegacySendService implements LegacySendService {
@@ -413,6 +462,77 @@ class AntigravitySdkLegacySendService implements LegacySendService {
   }
 }
 
+class AntigravityChatQueueService implements ChatQueueService {
+  private jobs = new Map<string, ChatJob>();
+  private processing = false;
+  private runtime: SdkRuntime;
+
+  constructor(runtime: SdkRuntime) {
+    this.runtime = runtime;
+    setInterval(() => this.processQueue(), 1000);
+  }
+
+  async enqueue(text: string, model?: ModelId): Promise<string> {
+    const job: ChatJob = {
+      id: crypto.randomUUID(),
+      text,
+      model,
+      status: "pending",
+      createdAt: new Date(),
+    };
+    this.jobs.set(job.id, job);
+    this.processQueue();
+    return job.id;
+  }
+
+  async getJob(jobId: string): Promise<ChatJob | null> {
+    return this.jobs.get(jobId) ?? null;
+  }
+
+  async getJobResult(jobId: string): Promise<unknown | null> {
+    const job = this.jobs.get(jobId);
+    if (!job || job.status !== "completed" || !job.conversationId) {
+      return null;
+    }
+    const sdk = await this.runtime.ready();
+    return sdk.ls.getConversation(job.conversationId);
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing) return;
+    this.processing = true;
+
+    try {
+      for (const [jobId, job] of this.jobs) {
+        if (job.status !== "pending") continue;
+
+        job.status = "processing";
+        try {
+          const sdk = await this.runtime.ready();
+          const cascadeId = await sdk.ls.createCascade({
+            text: job.text,
+            model: job.model ?? Models.GEMINI_FLASH,
+          });
+
+          if (!cascadeId) {
+            job.status = "failed";
+            job.error = "Failed to create cascade";
+            continue;
+          }
+
+          job.conversationId = cascadeId;
+          job.status = "completed";
+        } catch (error) {
+          job.status = "failed";
+          job.error = String(error);
+        }
+      }
+    } finally {
+      this.processing = false;
+    }
+  }
+}
+
 export function createBridgeServices(
   context: vscode.ExtensionContext,
   executeCommand: CommandExecutor,
@@ -426,6 +546,7 @@ export function createBridgeServices(
     actions: new CommandActionService(executeCommand),
     monitoring,
     legacySend: new AntigravitySdkLegacySendService(executeCommand, monitoring),
+    chatQueue: new AntigravityChatQueueService(runtime),
   };
 }
 
