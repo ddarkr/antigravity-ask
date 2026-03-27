@@ -25,6 +25,9 @@ Use this when you only need the final answer and do not care about intermediate 
 
 ```bash
 npx antigravity-ask send "Open a new chat and say hello"
+# → returns { "success": true, "job_id": "xxx" }
+# Poll job status: GET /chat/:jobId
+# When completed, get conversation_id and inspect:
 npx antigravity-ask conversation <conversation_id>
 ```
 
@@ -42,15 +45,19 @@ Use this when the Antigravity run wrote useful output files and you need the raw
 ## Workflow 5: Use the HTTP API for explicit model control
 
 ```bash
+# Send request (returns job_id)
 curl -X POST http://localhost:5820/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "text": "Summarize the current bridge architecture.",
-    "model": <sdk model id>
+    "model": "MODEL_GOOGLE_GEMINI_RIFTRUNNER"
   }'
+
+# Poll job status
+curl http://localhost:5820/chat/<job_id>
 ```
 
-Use the HTTP API instead of the CLI shortcut when you need lower-level control such as explicit `model` selection.
+Use the HTTP API instead of the CLI shortcut when you need lower-level control such as explicit `model` selection with protobuf enum strings.
 
 ## Workflow 6: Trigger bridge actions
 

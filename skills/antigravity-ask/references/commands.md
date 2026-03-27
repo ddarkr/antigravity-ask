@@ -28,7 +28,9 @@ npx antigravity-ask ask "List the supported bridge actions."
 npx antigravity-ask send "Create a new conversation about release notes"
 ```
 
-- Use `send` when you want a `conversation_id` and plan to inspect the conversation yourself.
+- Use `send` when you want a `job_id` for polling.
+- Returns `{ "success": true, "job_id": "xxx" }`
+- Poll job status via `GET /chat/:jobId` to get `conversation_id` when completed.
 
 ## Conversation inspection
 

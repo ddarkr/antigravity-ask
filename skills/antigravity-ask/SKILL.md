@@ -66,7 +66,8 @@ npx antigravity-ask --variant flash ask "Summarize the current bridge architectu
 
 ```bash
 npx antigravity-ask send "Open a new chat and say hello"
-npx antigravity-ask --variant pro send "Review the failing tests"
+# → returns { "success": true, "job_id": "xxx" }
+# Poll status: GET /chat/:jobId (returns conversation_id when completed)
 npx antigravity-ask conversation <conversation_id>
 npx antigravity-ask artifacts
 npx antigravity-ask artifact <conversation_id> output.md
