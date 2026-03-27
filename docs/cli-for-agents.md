@@ -84,7 +84,8 @@ If you need asynchronous control:
 
 ```bash
 npx antigravity-ask send "Open a new chat and say hello"
-npx antigravity-ask conversation <conversation_id>
+# → returns { "success": true, "job_id": "xxx" }
+# Poll status: GET /chat/:jobId
 ```
 
 ## Commands
@@ -141,9 +142,9 @@ Starts a headless prompt without waiting for completion.
 npx antigravity-ask send "Create a new conversation about release notes"
 ```
 
-Expected output: stdout includes a status line followed by JSON, usually including `conversation_id`.
+Expected output: JSON to stdout with `job_id` for polling.
 
-Use `send` when you want to poll or inspect the conversation yourself.
+Use `send` when you want to poll job status yourself via `GET /chat/:jobId`.
 
 ### `conversation <id>`
 
@@ -232,25 +233,29 @@ npx antigravity-ask --variant flash ask "Summarize the current bridge architectu
 npx antigravity-ask --variant pro send "Create a release summary"
 ```
 
-## Advanced: Headless Chat With Explicit Numeric Model IDs
+## Advanced: Headless Chat With Explicit Model IDs
 
-If you need a numeric SDK model id that is not covered by the built-in variant aliases, use the bridge HTTP API:
+If you need a model that is not covered by the built-in variant aliases, use the bridge HTTP API:
 
 ```bash
+# Send request (returns job_id)
 curl -X POST http://localhost:5820/chat \
   -H 'Content-Type: application/json' \
   -d '{
     "text": "Summarize the current bridge architecture.",
-    "model": <sdk model id>
+    "model": "MODEL_GOOGLE_GEMINI_RIFTRUNNER"
   }'
+
+# Poll job status
+curl http://localhost:5820/chat/<job_id>
 ```
 
 Notes:
 
 - `/chat` accepts `text` and an optional `model`
 - when `model` is omitted, the server defaults to `Models.GEMINI_FLASH`
-- the current repository uses model ids re-exported by `antigravity-sdk`
-- this is the lowest-level path when the CLI aliases are not enough
+- model IDs use protobuf enum strings (e.g., `MODEL_GOOGLE_GEMINI_RIFTRUNNER`)
+- `/chat/:jobId` returns job status and `conversation_id` when completed
 
 ## Output Rules
 

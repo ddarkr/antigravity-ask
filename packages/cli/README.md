@@ -39,7 +39,8 @@ npx antigravity-ask ask "Summarize the current bridge architecture."
 
 # Send asynchronously and inspect later
 npx antigravity-ask send "Open a new chat and say hello"
-npx antigravity-ask conversation <conversation_id>
+# → returns { "success": true, "job_id": "xxx" }
+# Poll status: GET /chat/:jobId
 ```
 
 ## URL overrides

@@ -50,7 +50,8 @@ This is a monorepo managed with `pnpm-workspace.yaml`, and the currently active 
 | GET | `/ping` | Health check. Returns `{ status: "ok", mode: "native_api" }` |
 | GET | `/lsstatus` | Check SDK LS connection status (port, csrf presence, etc.) |
 | POST | `/send` | Legacy Native API fallback that opens a new conversation and sends a prompt |
-| POST | `/chat` | Create an SDK-backed headless Cascade and send a message. Returns `conversation_id` |
+| POST | `/chat` | Create an SDK-backed headless Cascade and send a message. Returns `job_id` for polling |
+| GET | `/chat/:jobId` | Poll job status and get `conversation_id` when completed |
 | POST | `/action` | Run an action (`start_new_chat`, `focus_chat`, `allow`, `reject_step`, `terminal_run`) |
 | GET | `/conversation/:id` | Fetch the full trajectory for a specific conversation (SDK raw RPC) |
 | GET | `/list-cascades` | List all Cascades and their states (SDK LS) |
@@ -90,7 +91,7 @@ You can override the server address with the `AG_BRIDGE_URL` environment variabl
 
 ```bash
 npx antigravity-ask ask <text>           # send a headless prompt, wait for the agent to finish, print the result
-npx antigravity-ask send <text>          # send a headless prompt asynchronously, return conversation_id
+npx antigravity-ask send <text>          # send a headless prompt asynchronously, return job_id
 npx antigravity-ask ping                 # check server status
 npx antigravity-ask action <type>        # run an action (start_new_chat, focus_chat, allow, reject_step, terminal_run)
 npx antigravity-ask artifacts            # list conversation artifacts
@@ -105,9 +106,9 @@ npx antigravity-ask conversations        # alias for artifacts
 
 ### How the `ask` command works
 
-1. Send a headless prompt through `/chat` and receive a `conversation_id`
-2. Poll `/list-cascades` every 3 seconds until `CASCADE_RUN_STATUS_IDLE`
-3. Treat the conversation as complete when the last step is not `USER_INPUT`
+1. Send a headless prompt through `/chat` and receive a `job_id`
+2. Poll `/chat/:jobId` every 3 seconds until status is `completed`
+3. Get `conversation_id` from the completed job
 4. Fetch the full conversation via `/conversation/:id` and extract the text response (stdout for the result, stderr for progress)
 
 ---

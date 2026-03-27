@@ -9,9 +9,10 @@ npx antigravity-ask ping
 # 2) Send one request and wait for the final response
 npx antigravity-ask ask "Summarize the current bridge architecture."
 
-# 3) Send asynchronously, get a conversation_id, and inspect it later
+# 3) Send asynchronously, get a job_id, and check status later
 npx antigravity-ask send "Open a new chat and say hello"
-npx antigravity-ask conversation <conversation_id>
+# → returns { "success": true, "job_id": "xxx" }
+# Poll status: GET /chat/:jobId
 ```
 
 - Override options: `--url`, `--http-port`, `AG_BRIDGE_URL`
