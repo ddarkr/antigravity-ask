@@ -7,7 +7,7 @@ import {
 import type { BridgeHttpClient } from "./http";
 
 export interface AskOptions {
-  model?: number;
+  model?: string | number;
   pollIntervalMs?: number;
   onPoll?: () => void;
   onPollError?: (error: unknown) => void;
@@ -26,11 +26,11 @@ export async function waitForAskResponse(
 ): Promise<AskResult> {
   const sendResult = await client.chat(text, options.model);
 
-  if (!sendResult.success || !sendResult.conversation_id) {
-    throw new Error("Failed to obtain conversation_id after sending.");
+  if (!sendResult.success || !sendResult.job_id) {
+    throw new Error("Failed to obtain job_id after sending.");
   }
 
-  const conversationId = sendResult.conversation_id;
+  const jobId = sendResult.job_id;
   const pollIntervalMs = options.pollIntervalMs ?? 3000;
 
   while (true) {
@@ -38,12 +38,19 @@ export async function waitForAskResponse(
     options.onPoll?.();
 
     try {
-      const cascades = await client.listCascades();
-      if (!isCascadeIdle(cascades, conversationId)) {
+      const jobStatus = await client.getJobStatus(jobId);
+      
+      if (jobStatus.status === "failed") {
+        throw new Error(`Job failed: ${jobStatus.error}`);
+      }
+      
+      if (jobStatus.status !== "completed" || !jobStatus.conversation_id) {
         continue;
       }
 
+      const conversationId = jobStatus.conversation_id;
       const conversation = await client.getConversation(conversationId);
+      
       if (!isConversationFinished(conversation)) {
         continue;
       }

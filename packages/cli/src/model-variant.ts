@@ -1,15 +1,15 @@
 export const MODEL_VARIANTS = {
-  flash: 1018,
-  pro: 1165,
-  "pro-low": 1164,
-  sonnet: 1163,
-  opus: 1154,
-  "gpt-oss": 342,
+  flash: "MODEL_GOOGLE_GEMINI_RIFTRUNNER",
+  pro: "MODEL_GOOGLE_GEMINI_RIFTRUNNER_THINKING_HIGH",
+  "pro-low": "MODEL_GOOGLE_GEMINI_RIFTRUNNER_THINKING_LOW",
+  sonnet: "MODEL_CLAUDE_4_SONNET",
+  opus: "MODEL_CLAUDE_4_OPUS_THINKING",
+  "gpt-oss": "MODEL_OPENAI_GPT_OSS_120B_MEDIUM",
 } as const;
 
 export type ModelVariant = keyof typeof MODEL_VARIANTS;
 
-export function parseModelVariant(rawVariant?: string): number | undefined {
+export function parseModelVariant(rawVariant?: string): string | number | undefined {
   if (!rawVariant) {
     return undefined;
   }
