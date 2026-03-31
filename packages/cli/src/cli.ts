@@ -77,6 +77,7 @@ Aliases (Legacy):
         const askResult = await waitForAskResponse(client, text, {
           model: selectedModel,
           onPoll: () => process.stderr.write("."),
+          onPollError: (error) => process.stderr.write(`\n[poll error] ${error instanceof Error ? error.message : String(error)}\n`),
         });
 
         console.error("\nAgent finished generating response.");

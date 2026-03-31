@@ -498,21 +498,37 @@ class AntigravityChatQueueService implements ChatQueueService {
     return sdk.ls.getConversation(job.conversationId);
   }
 
+  private async createCascadeWithRetry(job: ChatJob): Promise<string | null> {
+    try {
+      const sdk = await this.runtime.ready();
+      return await sdk.ls.createCascade({
+        text: job.text,
+        model: job.model ?? Models.GEMINI_FLASH,
+      });
+    } catch (error) {
+      if (!isInvalidCsrfError(error)) {
+        throw error;
+      }
+
+      const sdk = await this.runtime.reset();
+      return sdk.ls.createCascade({
+        text: job.text,
+        model: job.model ?? Models.GEMINI_FLASH,
+      });
+    }
+  }
+
   private async processQueue(): Promise<void> {
     if (this.processing) return;
     this.processing = true;
 
     try {
-      for (const [jobId, job] of this.jobs) {
+      for (const [, job] of this.jobs) {
         if (job.status !== "pending") continue;
 
         job.status = "processing";
         try {
-          const sdk = await this.runtime.ready();
-          const cascadeId = await sdk.ls.createCascade({
-            text: job.text,
-            model: job.model ?? Models.GEMINI_FLASH,
-          });
+          const cascadeId = await this.createCascadeWithRetry(job);
 
           if (!cascadeId) {
             job.status = "failed";

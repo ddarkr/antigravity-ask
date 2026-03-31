@@ -1,6 +1,7 @@
 export const BRIDGE_PATHS = {
   ping: "/ping",
   send: "/chat",
+  visibleSend: "/send",
   chat: "/chat",
   chatJob: (jobId: string) => `/chat/${jobId}`,
   action: "/action",
@@ -30,7 +31,7 @@ export function isBridgeAction(value: string): value is BridgeAction {
 export interface SendResponse {
   success?: boolean;
   job_id?: string;
-  conversation_id?: string;
+  conversation_id?: string | null;
 }
 
 export interface ChatJobResponse {

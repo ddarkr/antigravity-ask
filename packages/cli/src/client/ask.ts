@@ -9,8 +9,10 @@ import type { BridgeHttpClient } from "./http";
 export interface AskOptions {
   model?: string | number;
   pollIntervalMs?: number;
+  pollTimeoutMs?: number;
   onPoll?: () => void;
   onPollError?: (error: unknown) => void;
+  sleep?: (milliseconds: number) => Promise<void>;
 }
 
 export interface AskResult {
@@ -19,39 +21,38 @@ export interface AskResult {
   text: string | null;
 }
 
+class TerminalAskPollingError extends Error {}
+
 export async function waitForAskResponse(
   client: BridgeHttpClient,
   text: string,
   options: AskOptions = {},
 ): Promise<AskResult> {
-  const sendResult = await client.chat(text, options.model);
+  const sendResult = await client.sendVisible(text);
 
-  if (!sendResult.success || !sendResult.job_id) {
-    throw new Error("Failed to obtain job_id after sending.");
+  if (!sendResult.success || !sendResult.conversation_id) {
+    throw new Error("Failed to obtain conversation_id after sending via visible chat.");
   }
 
-  const jobId = sendResult.job_id;
+  const conversationId = sendResult.conversation_id;
   const pollIntervalMs = options.pollIntervalMs ?? 3000;
+  const pollTimeoutMs = options.pollTimeoutMs ?? 120000;
+  const sleep = options.sleep ?? delay;
+  const deadline = Date.now() + pollTimeoutMs;
 
-  while (true) {
-    await delay(pollIntervalMs);
+  while (Date.now() < deadline) {
+    await sleep(pollIntervalMs);
     options.onPoll?.();
 
     try {
-      const jobStatus = await client.getJobStatus(jobId);
-      
-      if (jobStatus.status === "failed") {
-        throw new Error(`Job failed: ${jobStatus.error}`);
-      }
-      
-      if (jobStatus.status !== "completed" || !jobStatus.conversation_id) {
-        continue;
-      }
-
-      const conversationId = jobStatus.conversation_id;
       const conversation = await client.getConversation(conversationId);
       
       if (!isConversationFinished(conversation)) {
+        continue;
+      }
+
+      const cascades = await client.listCascades();
+      if (!isCascadeIdle(cascades, conversationId)) {
         continue;
       }
 
@@ -62,8 +63,13 @@ export async function waitForAskResponse(
       };
     } catch (error) {
       options.onPollError?.(error);
+      if (error instanceof TerminalAskPollingError) {
+        throw error;
+      }
     }
   }
+
+  throw new Error(`Timed out waiting for final agent response after ${pollTimeoutMs}ms.`);
 }
 
 function delay(ms: number): Promise<void> {
