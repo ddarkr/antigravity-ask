@@ -81,6 +81,72 @@ describe("waitForAskResponse", () => {
     expect(result.text).toBe("ready");
   });
 
+  it("recovers from a transient conversation polling error", async () => {
+    const onPollError = vi.fn();
+    const client = createClient({
+      sendVisible: vi.fn(async () => ({
+        success: true,
+        conversation_id: "convo-1",
+      })),
+      getConversation: vi
+        .fn<BridgeHttpClient["getConversation"]>()
+        .mockRejectedValueOnce(new Error("HTTP 500: LS GetCascadeTrajectory: 403 Invalid CSRF token"))
+        .mockResolvedValueOnce({
+          trajectory: {
+            steps: [
+              { type: "CORTEX_STEP_TYPE_USER_INPUT" },
+              { type: "CORTEX_STEP_TYPE_MODEL_RESPONSE", modelResponse: { text: "done" } },
+            ],
+          },
+        }),
+      listCascades: vi.fn(async () => ({
+        "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" },
+      })),
+    });
+
+    const result = await waitForAskResponse(client, "hello", {
+      pollIntervalMs: 1,
+      sleep: async () => {},
+      onPollError,
+    });
+
+    expect(result.text).toBe("done");
+    expect(onPollError).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers from a transient cascade status polling error", async () => {
+    const onPollError = vi.fn();
+    const client = createClient({
+      sendVisible: vi.fn(async () => ({
+        success: true,
+        conversation_id: "convo-1",
+      })),
+      getConversation: vi.fn(async () => ({
+        trajectory: {
+          steps: [
+            { type: "CORTEX_STEP_TYPE_USER_INPUT" },
+            { type: "CORTEX_STEP_TYPE_MODEL_RESPONSE", modelResponse: { text: "done" } },
+          ],
+        },
+      })),
+      listCascades: vi
+        .fn<BridgeHttpClient["listCascades"]>()
+        .mockRejectedValueOnce(new Error("HTTP 500: LS ListCascades: 403 Invalid CSRF token"))
+        .mockResolvedValueOnce({
+          "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" },
+        }),
+    });
+
+    const result = await waitForAskResponse(client, "hello", {
+      pollIntervalMs: 1,
+      sleep: async () => {},
+      onPollError,
+    });
+
+    expect(result.text).toBe("done");
+    expect(onPollError).toHaveBeenCalledTimes(1);
+  });
+
   it("fails immediately when visible send does not provide a conversation id", async () => {
     const client = createClient({
       sendVisible: vi.fn(async () => ({

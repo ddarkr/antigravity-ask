@@ -194,6 +194,20 @@ class AntigravitySdkConversationService implements ConversationService {
     private readonly executeCommand: CommandExecutor,
   ) {}
 
+  private async withReadCsrfRetry<T>(operation: (sdk: AntigravitySDK) => Promise<T>): Promise<T> {
+    try {
+      const sdk = await this.runtime.ready();
+      return await operation(sdk);
+    } catch (error) {
+      if (!isInvalidCsrfError(error)) {
+        throw error;
+      }
+
+      const sdk = await this.runtime.reset();
+      return operation(sdk);
+    }
+  }
+
   async createHeadlessConversation(text: string, model?: ModelId): Promise<string | null> {
     try {
       return await this.createHeadlessConversationOnce(text, model, false);
@@ -253,18 +267,18 @@ class AntigravitySdkConversationService implements ConversationService {
   }
 
   async getConversation(conversationId: string): Promise<unknown> {
-    const sdk = await this.runtime.ready();
-    const cascades = await sdk.ls.listCascades() as CascadeMap;
-    const trajectoryId = cascades[conversationId]?.trajectoryId ?? conversationId;
-    return sdk.ls.rawRPC("GetCascadeTrajectory", {
-      cascadeId: conversationId,
-      trajectoryId,
+    return this.withReadCsrfRetry(async (sdk) => {
+      const cascades = await sdk.ls.listCascades() as CascadeMap;
+      const trajectoryId = cascades[conversationId]?.trajectoryId ?? conversationId;
+      return sdk.ls.rawRPC("GetCascadeTrajectory", {
+        cascadeId: conversationId,
+        trajectoryId,
+      });
     });
   }
 
   async listCascades(): Promise<CascadeMap> {
-    const sdk = await this.runtime.ready();
-    return sdk.ls.listCascades() as Promise<CascadeMap>;
+    return this.withReadCsrfRetry(async (sdk) => sdk.ls.listCascades() as Promise<CascadeMap>);
   }
 
   async focusConversation(conversationId: string): Promise<void> {
