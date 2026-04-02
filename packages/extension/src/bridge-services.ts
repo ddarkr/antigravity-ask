@@ -268,12 +268,24 @@ class AntigravitySdkConversationService implements ConversationService {
 
   async getConversation(conversationId: string): Promise<unknown> {
     return this.withReadCsrfRetry(async (sdk) => {
-      const cascades = await sdk.ls.listCascades() as CascadeMap;
-      const trajectoryId = cascades[conversationId]?.trajectoryId ?? conversationId;
-      return sdk.ls.rawRPC("GetCascadeTrajectory", {
-        cascadeId: conversationId,
-        trajectoryId,
-      });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const cascades = await sdk.ls.listCascades() as CascadeMap;
+          const trajectoryId = cascades[conversationId]?.trajectoryId ?? conversationId;
+          return await sdk.ls.rawRPC("GetCascadeTrajectory", {
+            cascadeId: conversationId,
+            trajectoryId,
+          });
+        } catch (error) {
+          const message = String(error);
+          const isNotFound = message.includes("trajectory not found") || message.includes("not found");
+          if (!isNotFound || attempt === 2) {
+            throw error;
+          }
+          await delay(1000);
+        }
+      }
+      throw new Error("Failed to get conversation after retries");
     });
   }
 
@@ -479,10 +491,10 @@ class AntigravitySdkLegacySendService implements LegacySendService {
 class AntigravityChatQueueService implements ChatQueueService {
   private jobs = new Map<string, ChatJob>();
   private processing = false;
-  private runtime: SdkRuntime;
+  private conversation: ConversationService;
 
-  constructor(runtime: SdkRuntime) {
-    this.runtime = runtime;
+  constructor(conversation: ConversationService) {
+    this.conversation = conversation;
     setInterval(() => this.processQueue(), 1000);
   }
 
@@ -508,28 +520,7 @@ class AntigravityChatQueueService implements ChatQueueService {
     if (!job || job.status !== "completed" || !job.conversationId) {
       return null;
     }
-    const sdk = await this.runtime.ready();
-    return sdk.ls.getConversation(job.conversationId);
-  }
-
-  private async createCascadeWithRetry(job: ChatJob): Promise<string | null> {
-    try {
-      const sdk = await this.runtime.ready();
-      return await sdk.ls.createCascade({
-        text: job.text,
-        model: job.model ?? Models.GEMINI_FLASH,
-      });
-    } catch (error) {
-      if (!isInvalidCsrfError(error)) {
-        throw error;
-      }
-
-      const sdk = await this.runtime.reset();
-      return sdk.ls.createCascade({
-        text: job.text,
-        model: job.model ?? Models.GEMINI_FLASH,
-      });
-    }
+    return this.conversation.getConversation(job.conversationId);
   }
 
   private async processQueue(): Promise<void> {
@@ -542,7 +533,7 @@ class AntigravityChatQueueService implements ChatQueueService {
 
         job.status = "processing";
         try {
-          const cascadeId = await this.createCascadeWithRetry(job);
+          const cascadeId = await this.conversation.createHeadlessConversation(job.text, job.model);
 
           if (!cascadeId) {
             job.status = "failed";
@@ -570,13 +561,14 @@ export function createBridgeServices(
 ): BridgeServices {
   const runtime = new SdkRuntime(context);
   const monitoring = new AntigravitySdkMonitoringService(runtime, executeCommand, discovery);
+  const conversation = new AntigravitySdkConversationService(runtime, executeCommand);
 
   return {
-    conversation: new AntigravitySdkConversationService(runtime, executeCommand),
+    conversation,
     actions: new CommandActionService(executeCommand),
     monitoring,
     legacySend: new AntigravitySdkLegacySendService(executeCommand, monitoring),
-    chatQueue: new AntigravityChatQueueService(runtime),
+    chatQueue: new AntigravityChatQueueService(conversation),
   };
 }
 
