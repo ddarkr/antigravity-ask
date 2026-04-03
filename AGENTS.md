@@ -155,6 +155,54 @@ The bridge server uses the following `antigravity.*` namespace commands (the `Br
 
 ---
 
+## 🚀 Release Process
+
+> ⚠️ **CRITICAL**: GitHub Release 태그와 두 `package.json`의 version이 **반드시 일치**해야 CI가 통과합니다.
+
+### Checklist
+
+```
+1. packages/extension/package.json → version 업데이트 (예: "0.2.5")
+2. packages/cli/package.json → version 업데이트 (예: "0.2.5")
+3. git commit -m "chore: bump release versions to X.Y.Z"
+4. git push
+5. git tag vX.Y.Z
+6. git push origin vX.Y.Z
+7. GitHub Release 생성 → CI 자동 실행 → npm / VS Marketplace / Open VSX 배포
+```
+
+### Why?
+
+`release-extension.yml`는 릴리즈 태그(`v0.2.5`)와 `package.json` version(`0.2.5`)을 비교하여 불일치 시 **즉시 실패**합니다.
+또한 CLI와 Extension이 lockstep으로 배포되므로 **둘 다** 버전을 올려야 합니다.
+
+### Example
+
+```bash
+# 릴리즈 v0.2.5 예시
+# 1. 버전 업데이트
+sed -i '' 's/"version": "0.2.4"/"version": "0.2.5"/' packages/extension/package.json
+sed -i '' 's/"version": "0.2.4"/"version": "0.2.5"/' packages/cli/package.json
+
+# 2. 커밋
+git add packages/extension/package.json packages/cli/package.json
+git commit -m "chore: bump release versions to 0.2.5"
+
+# 3. 푸시 + 태그
+git push
+git tag v0.2.5
+git push origin v0.2.5
+
+# 4. GitHub Release 생성 (또는 gh release create)
+gh release create v0.2.5 --title "v0.2.5" --notes "..."
+```
+
+### Detailed docs
+
+See `docs/release-automation.md` for full CI behavior, required secrets, and manual dry run commands.
+
+---
+
 ## ⚠️ Legacy Code Warnings
 
 ### Corrupt error prevention (emergency recovery logic)
