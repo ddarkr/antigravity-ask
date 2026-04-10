@@ -77,7 +77,14 @@ Aliases (Legacy):
         const askResult = await waitForAskResponse(client, text, {
           model: selectedModel,
           onPoll: () => process.stderr.write("."),
-          onPollError: (error) => process.stderr.write(`\n[poll error] ${error instanceof Error ? error.message : String(error)}\n`),
+          onPollError: (error) =>
+            process.stderr.write(
+              `\n[poll error] ${error instanceof Error ? error.message : String(error)}\n`,
+            ),
+          onRetry: (attempt, delayMs, reason) =>
+            process.stderr.write(
+              `\n[retry ${attempt}] ${reason} — retrying in ${delayMs}ms...\n`,
+            ),
         });
 
         console.error("\nAgent finished generating response.");
@@ -86,8 +93,16 @@ Aliases (Legacy):
           if (askResult.text) {
             console.log(askResult.text);
           } else {
-            console.error("Warning: Could not find a text response in the conversation steps.");
-            console.log(JSON.stringify(askResult.conversation.trajectory.steps.at(-1), null, 2));
+            console.error(
+              "Warning: Could not find a text response in the conversation steps.",
+            );
+            console.log(
+              JSON.stringify(
+                askResult.conversation.trajectory.steps.at(-1),
+                null,
+                2,
+              ),
+            );
           }
         }
         break;
@@ -103,13 +118,17 @@ Aliases (Legacy):
       case "action": {
         const type = args[1];
         if (!type) {
-          console.error("Error: Please provide an action type (e.g., start_new_chat, allow)");
+          console.error(
+            "Error: Please provide an action type (e.g., start_new_chat, allow)",
+          );
           process.exit(1);
         }
 
         if (!isBridgeAction(type)) {
           console.error(`Error: Unknown action type: ${type}`);
-          console.error(`Supported actions: ${Object.values(BRIDGE_ACTIONS).join(", ")}`);
+          console.error(
+            `Supported actions: ${Object.values(BRIDGE_ACTIONS).join(", ")}`,
+          );
           process.exit(1);
         }
 
@@ -150,7 +169,9 @@ Aliases (Legacy):
           console.error("Error: Please provide convoId and path");
           process.exit(1);
         }
-        const result = await client.request<string>(BRIDGE_PATHS.artifact(convoId, path));
+        const result = await client.request<string>(
+          BRIDGE_PATHS.artifact(convoId, path),
+        );
         console.log(result);
         break;
       }
@@ -161,7 +182,10 @@ Aliases (Legacy):
         process.exit(1);
     }
   } catch (err) {
-    console.error("Error:", err instanceof Error ? err.message : String(err));
+    console.error(
+      "Error:",
+      err instanceof Error ? err.message : String(err),
+    );
     process.exit(1);
   }
 }
