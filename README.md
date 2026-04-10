@@ -16,7 +16,6 @@ npx antigravity-ask send "Open a new chat and say hello"
 ```
 
 - Override options: `--url`, `--http-port`, `AG_BRIDGE_URL`
-- Model selection for `ask`/`send`: `--variant flash|pro|pro-low|sonnet|opus|gpt-oss`
 - Without an explicit override, the CLI resolves the bridge from the current working directory, opens that folder as a workspace when needed, and waits for the matching bridge to become ready.
 - Auto-discovery currently supports single-folder workspaces only. Opening the same folder in multiple windows is unsupported.
 - Detailed guide for coding agents: `docs/cli-for-agents.md`
@@ -76,7 +75,6 @@ For quick local testing from the repository root, run:
 ```bash
 pnpm exec antigravity-ask ping
 pnpm exec antigravity-ask ask "hello"
-pnpm exec antigravity-ask --variant flash ask "summarize the workspace"
 ```
 
 The CLI prefers explicit overrides first. Without one, it resolves the bridge from the current working directory and launches that folder in VS Code when no matching bridge is already running.
@@ -84,22 +82,12 @@ The CLI prefers explicit overrides first. Without one, it resolves the bridge fr
 ```bash
 npx antigravity-ask ask <text>
 npx antigravity-ask send <text>
-npx antigravity-ask --variant flash ask <text>
-npx antigravity-ask --variant pro send <text>
 npx antigravity-ask ping
 npx antigravity-ask action <type>
 npx antigravity-ask artifacts
 npx antigravity-ask conversation <id>
 npx antigravity-ask artifact <id> <path>
 ```
-
-For simple model selection, `ask` and `send` accept `--variant <name>`.
-
-- `flash` → Gemini Flash
-- `pro` → Gemini Pro high
-- `pro-low` → Gemini Pro low
-- `sonnet` → Claude Sonnet
-- `opus` → Claude Opus
 - `gpt-oss` → GPT-OSS
 
 ## For AI Agents

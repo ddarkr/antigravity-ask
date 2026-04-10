@@ -122,17 +122,6 @@ Behavior:
 
 Use `ask` when you want a single final answer.
 
-Important:
-
-- use `--variant <name>` when you want simple model selection from the CLI
-- if you need an arbitrary numeric SDK model id instead of a supported variant alias, use the HTTP bridge API directly
-
-Example:
-
-```bash
-npx antigravity-ask --variant flash ask "List the supported bridge actions."
-npx antigravity-ask --variant pro send "Review the failing tests"
-```
 
 ### `send <text>`
 

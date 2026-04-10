@@ -23,7 +23,7 @@ Antigravity Ask Bridge CLI
 Global Options:
   --url <baseUrl>                        Override the full bridge base URL
   --http-port <port>                    Override the bridge HTTP port on localhost
-  --variant <name>                      Select model variant for ask/send (${Object.keys(MODEL_VARIANTS).join(", ")})
+  --variant <name>                      Select model variant for send only (${Object.keys(MODEL_VARIANTS).join(", ")})
 
 Commands:
   ask <text>                             Send a prompt and wait until the agent finishes to print the response

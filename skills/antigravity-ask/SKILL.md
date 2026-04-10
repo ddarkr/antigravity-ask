@@ -47,11 +47,7 @@ Follow this order unless you already know the bridge is reachable.
    - `conversation`, `artifacts`, and `action` return JSON.
    - `artifact` returns raw file contents.
 
-4. **Pick a model variant when you need one**
-   - Use `--variant <name>` with `ask` or `send` for simple model selection.
-   - Supported variants: `flash`, `pro`, `pro-low`, `sonnet`, `opus`, `gpt-oss`.
-
-5. **Escalate to the HTTP API only when necessary**
+4. **Escalate to the HTTP API only when necessary**
    - If you need an arbitrary numeric `model` id or lower-level integration, use the bridge HTTP API instead of the CLI shortcut.
 
 ## Golden path
@@ -59,7 +55,6 @@ Follow this order unless you already know the bridge is reachable.
 ```bash
 npx antigravity-ask ping
 npx antigravity-ask ask "Summarize the current bridge architecture."
-npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
 ```
 
 ## Async inspection flow
@@ -73,16 +68,6 @@ npx antigravity-ask artifacts
 npx antigravity-ask artifact <conversation_id> output.md
 ```
 
-## Model variants
-
-Use these aliases with `ask` and `send`:
-
-- `flash` → Gemini Flash
-- `pro` → Gemini Pro high
-- `pro-low` → Gemini Pro low
-- `sonnet` → Claude Sonnet
-- `opus` → Claude Opus
-- `gpt-oss` → GPT-OSS
 
 ## URL overrides
 
