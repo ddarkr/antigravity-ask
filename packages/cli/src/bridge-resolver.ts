@@ -52,7 +52,39 @@ export async function resolveBridgeBaseUrl(
   options: ResolveBridgeBaseUrlOptions,
 ): Promise<ResolvedBridgeTarget> {
   const workspacePath = canonicalizeWorkspacePath(options.cwd);
-  if (options.explicitBaseUrl) {
+  async function pingBridge(baseUrl: string): Promise<BridgePingResponse | null> {
+  try {
+    const response = await fetch(`${baseUrl}/ping`);
+    if (!response.ok) {
+      return null;
+    }
+    return response.json() as Promise<BridgePingResponse>;
+  } catch {
+    return null;
+  }
+}
+
+async function getBridgeStatus(baseUrl: string): Promise<BridgeDiscoveryStatus | null> {
+  try {
+    const response = await fetch(`${baseUrl}/lsstatus`);
+    if (!response.ok) {
+      return null;
+    }
+    return response.json() as Promise<BridgeDiscoveryStatus>;
+  } catch {
+    return null;
+  }
+}
+
+if (options.explicitBaseUrl) {
+    // Verify the bridge is actually ready before using it
+    const status = await getBridgeStatus(options.explicitBaseUrl);
+    if (!status?.ready) {
+      throw new Error(
+        `Bridge at ${options.explicitBaseUrl} is not ready. ` +
+        "Ensure Antigravity LS is running.",
+      );
+    }
     return {
       baseUrl: options.explicitBaseUrl,
       launchedWorkspace: false,

@@ -23,6 +23,16 @@ interface PortInspect {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Prevent duplicate activation — clean up existing instances first
+  if (bridge !== null) {
+    bridge.close();
+    bridge = null;
+  }
+  if (bridgeDiscovery !== null) {
+    bridgeDiscovery.dispose();
+    bridgeDiscovery = null;
+  }
+
   restoreLegacyPatchedFiles();
 
   const config = loadBridgeConfig();

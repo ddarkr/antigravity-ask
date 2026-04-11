@@ -27,6 +27,17 @@ import {
 type CommandExecutor = <T = unknown>(command: string, ...args: unknown[]) => Promise<T>;
 const execFileAsync = promisify(execFile);
 
+/** Wraps a promise with a timeout. Rejects with a descriptive error on timeout. */
+async function withTimeout<T>(promise: Promise<T>, ms: number, operationName: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${operationName} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
+
 interface CascadeSummary {
   trajectoryId?: string;
 }
@@ -88,7 +99,7 @@ export interface LegacySendService {
 export interface ChatJob {
   id: string;
   text: string;
-  model?: ModelId;
+  model?: string;
   status: "pending" | "processing" | "completed" | "failed";
   conversationId?: string;
   error?: string;
@@ -96,9 +107,11 @@ export interface ChatJob {
 }
 
 export interface ChatQueueService {
-  enqueue(text: string, model?: ModelId): Promise<string>;
+  enqueue(text: string, model?: string): Promise<string>;
   getJob(jobId: string): Promise<ChatJob | null>;
   getJobResult(jobId: string): Promise<unknown | null>;
+  /** Release all resources. Call on deactivation. */
+  dispose(): void;
 }
 
 export interface BridgeServices {
@@ -237,16 +250,16 @@ class AntigravitySdkConversationService implements ConversationService {
       }
 
       try {
-        const startResponse = await sdk.ls.rawRPC("StartCascade", { source: 0 }) as {
+        const startResponse = await withTimeout(sdk.ls.rawRPC("StartCascade", { source: 0 }) as Promise<{
           cascadeId?: string;
-        };
+        }>, 10_000, "StartCascade");
         const cascadeId = startResponse.cascadeId ?? null;
 
         if (!cascadeId) {
           throw new Error("StartCascade did not return cascadeId");
         }
 
-        await sdk.ls.rawRPC("SendUserCascadeMessage", {
+        await withTimeout(sdk.ls.rawRPC("SendUserCascadeMessage", {
           cascadeId,
           items: [{ chunk: { text } }],
           cascadeConfig: {
@@ -255,7 +268,7 @@ class AntigravitySdkConversationService implements ConversationService {
               requestedModel: { model: model ?? Models.GEMINI_FLASH },
             },
           },
-        });
+        }), 30_000, "SendUserCascadeMessage");
 
         return cascadeId;
       } catch (error) {
@@ -266,23 +279,25 @@ class AntigravitySdkConversationService implements ConversationService {
     throw errors[0] ?? new Error("Failed to create headless conversation");
   }
 
+
   async getConversation(conversationId: string): Promise<unknown> {
     return this.withReadCsrfRetry(async (sdk) => {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const cascades = await sdk.ls.listCascades() as CascadeMap;
+          const cascades = await withTimeout(sdk.ls.listCascades() as Promise<CascadeMap>, 10_000, "listCascades");
           const trajectoryId = cascades[conversationId]?.trajectoryId ?? conversationId;
-          return await sdk.ls.rawRPC("GetCascadeTrajectory", {
+          return await withTimeout(sdk.ls.rawRPC("GetCascadeTrajectory", {
             cascadeId: conversationId,
             trajectoryId,
-          });
+          }) as Promise<unknown>, 15_000, "GetCascadeTrajectory");
         } catch (error) {
           const message = String(error);
-          const isNotFound = message.includes("trajectory not found") || message.includes("not found");
-          if (!isNotFound || attempt === 2) {
-            throw error;
+          const isNotFound = message.includes("not found");
+          if (isNotFound && attempt < 2) {
+            await delay(1000 * (attempt + 1));
+            continue;
           }
-          await delay(1000);
+          throw error;
         }
       }
       throw new Error("Failed to get conversation after retries");
@@ -295,7 +310,7 @@ class AntigravitySdkConversationService implements ConversationService {
 
   async focusConversation(conversationId: string): Promise<void> {
     const sdk = await this.runtime.ready();
-    await sdk.ls.focusCascade(conversationId);
+    await withTimeout(sdk.ls.focusCascade(conversationId), 10_000, "focusCascade");
   }
 
   async openConversation(conversationId: string): Promise<void> {
@@ -430,19 +445,20 @@ class AntigravitySdkMonitoringService implements MonitoringService {
     };
 
     try {
+      let lastError: Error | null = null;
       if (candidates.length > 0) {
         for (const connection of candidates) {
           sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
           try {
-            const models = await sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true });
-            return { debug: debugInfo, models };
+            const models = await withTimeout(sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true }), 15_000, "GetCascadeModelConfigs");
+            return { debug: debugInfo, models: models ?? null };
           } catch (error) {
-            return { debug: debugInfo, error: String(error) };
+            lastError = toError(error);
           }
         }
       }
-      const models = await sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true });
-      return { debug: debugInfo, models };
+      const models = await withTimeout(sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true }), 15_000, "GetCascadeModelConfigs");
+      return { debug: debugInfo, models: models ?? null };
     } catch (error) {
       return { debug: debugInfo, error: String(error) };
     }
@@ -492,13 +508,22 @@ class AntigravityChatQueueService implements ChatQueueService {
   private jobs = new Map<string, ChatJob>();
   private processing = false;
   private conversation: ConversationService;
+  private timerId: ReturnType<typeof setInterval> | null = null;
 
   constructor(conversation: ConversationService) {
     this.conversation = conversation;
-    setInterval(() => this.processQueue(), 1000);
+    this.timerId = setInterval(() => this.processQueue(), 1000);
   }
 
-  async enqueue(text: string, model?: ModelId): Promise<string> {
+  dispose(): void {
+    if (this.timerId !== null) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+    this.jobs.clear();
+  }
+
+  async enqueue(text: string, model?: string): Promise<string> {
     const job: ChatJob = {
       id: crypto.randomUUID(),
       text,
@@ -507,7 +532,9 @@ class AntigravityChatQueueService implements ChatQueueService {
       createdAt: new Date(),
     };
     this.jobs.set(job.id, job);
-    this.processQueue();
+    this.processQueue().catch((err) => {
+      console.error("[Bridge] processQueue error:", err);
+    });
     return job.id;
   }
 
@@ -528,12 +555,14 @@ class AntigravityChatQueueService implements ChatQueueService {
     this.processing = true;
 
     try {
+      this.pruneOldJobs();
+
       for (const [, job] of this.jobs) {
         if (job.status !== "pending") continue;
 
         job.status = "processing";
         try {
-          const cascadeId = await this.conversation.createHeadlessConversation(job.text, job.model);
+          const cascadeId = await this.conversation.createHeadlessConversation(job.text, job.model as ModelId | undefined);
 
           if (!cascadeId) {
             job.status = "failed";
@@ -550,6 +579,19 @@ class AntigravityChatQueueService implements ChatQueueService {
       }
     } finally {
       this.processing = false;
+    }
+  }
+
+  private pruneOldJobs(): void {
+    const maxAge = 30 * 60 * 1000; // 30 minutes
+    const now = Date.now();
+    for (const [id, job] of this.jobs) {
+      if (
+        (job.status === "completed" || job.status === "failed")
+        && (now - job.createdAt.getTime()) > maxAge
+      ) {
+        this.jobs.delete(id);
+      }
     }
   }
 }

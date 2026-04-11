@@ -6,13 +6,41 @@ import {
   createBridgeHttpClient,
   isBridgeAction,
   waitForAskResponse,
+  type BridgeAction,
 } from "./index";
 import { resolveBridgeBaseUrl } from "./bridge-resolver";
 import { resolveCliConfig } from "./cli-config";
 import { MODEL_VARIANTS, parseModelVariant } from "./model-variant";
 
 async function main(): Promise<void> {
-  const config = resolveCliConfig(process.argv.slice(2), process.env);
+  // Set up signal handlers for graceful shutdown
+  const ac = new AbortController();
+  const exitCleanly = (code: number) => {
+    process.exit(code);
+  };
+
+  process.on("SIGINT", () => {
+    process.stderr.write("\nInterrupted.\n");
+    ac.abort();
+    exitCleanly(130);
+  });
+  process.on("SIGTERM", () => {
+    ac.abort();
+    exitCleanly(143);
+  });
+
+  // Parse config inside try to catch synchronous throws
+  let config: ReturnType<typeof resolveCliConfig>;
+  try {
+    config = resolveCliConfig(process.argv.slice(2), process.env);
+  } catch (err) {
+    process.stderr.write(
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+    exitCleanly(1);
+    return;
+  }
+
   const args = config.args;
   const command = args[0];
 
@@ -39,7 +67,8 @@ Aliases (Legacy):
   new-chat                               Alias for action start_new_chat
   conversations                          Alias for artifacts
 `);
-    process.exit(0);
+    exitCleanly(0);
+    return;
   }
 
   try {
@@ -55,8 +84,8 @@ Aliases (Legacy):
       case "send": {
         const text = args[1];
         if (!text) {
-          console.error("Error: Please provide text to send");
-          process.exit(1);
+          process.stderr.write("Error: Please provide text to send\n");
+          exitCleanly(1);
         }
 
         console.log("Sending prompt...");
@@ -68,14 +97,15 @@ Aliases (Legacy):
       case "ask": {
         const text = args[1];
         if (!text) {
-          console.error("Error: Please provide text to ask");
-          process.exit(1);
+          process.stderr.write("Error: Please provide text to ask\n");
+          exitCleanly(1);
         }
 
-        console.error("Waiting for agent response...");
+        process.stderr.write("Waiting for agent response...\n");
 
         const askResult = await waitForAskResponse(client, text, {
           model: selectedModel,
+          signal: ac.signal,
           onPoll: () => process.stderr.write("."),
           onPollError: (error) =>
             process.stderr.write(
@@ -87,14 +117,14 @@ Aliases (Legacy):
             ),
         });
 
-        console.error("\nAgent finished generating response.");
+        process.stderr.write("\nAgent finished generating response.\n");
 
         if (askResult.conversation.trajectory?.steps) {
           if (askResult.text) {
             console.log(askResult.text);
           } else {
-            console.error(
-              "Warning: Could not find a text response in the conversation steps.",
+            process.stderr.write(
+              "Warning: Could not find a text response in the conversation steps.\n",
             );
             console.log(
               JSON.stringify(
@@ -118,21 +148,21 @@ Aliases (Legacy):
       case "action": {
         const type = args[1];
         if (!type) {
-          console.error(
-            "Error: Please provide an action type (e.g., start_new_chat, allow)",
+          process.stderr.write(
+            "Error: Please provide an action type (e.g., start_new_chat, allow)\n",
           );
-          process.exit(1);
+          exitCleanly(1);
         }
 
         if (!isBridgeAction(type)) {
-          console.error(`Error: Unknown action type: ${type}`);
-          console.error(
-            `Supported actions: ${Object.values(BRIDGE_ACTIONS).join(", ")}`,
+          process.stderr.write(`Error: Unknown action type: ${type}\n`);
+          process.stderr.write(
+            `Supported actions: ${Object.values(BRIDGE_ACTIONS).join(", ")}\n`,
           );
-          process.exit(1);
+          exitCleanly(1);
         }
 
-        const result = await client.runAction(type);
+        const result = await client.runAction(type as BridgeAction);
         console.log(JSON.stringify(result, null, 2));
         break;
       }
@@ -154,8 +184,8 @@ Aliases (Legacy):
       case "chat": {
         const convoId = args[1];
         if (!convoId) {
-          console.error("Error: Please provide a conversation ID");
-          process.exit(1);
+          process.stderr.write("Error: Please provide a conversation ID\n");
+          exitCleanly(1);
         }
         const result = await client.getConversation(convoId);
         console.log(JSON.stringify(result, null, 2));
@@ -166,8 +196,8 @@ Aliases (Legacy):
         const convoId = args[1];
         const path = args[2];
         if (!convoId || !path) {
-          console.error("Error: Please provide convoId and path");
-          process.exit(1);
+          process.stderr.write("Error: Please provide convoId and path\n");
+          exitCleanly(1);
         }
         const result = await client.request<string>(
           BRIDGE_PATHS.artifact(convoId, path),
@@ -176,18 +206,23 @@ Aliases (Legacy):
         break;
       }
 
-      default:
-        console.error(`Unknown command: ${command}`);
-        console.error("Run with --help for usage info");
-        process.exit(1);
+      default: {
+        process.stderr.write(`Unknown command: ${command}\n`);
+        process.stderr.write("Run with --help for usage info\n");
+        exitCleanly(1);
+      }
     }
   } catch (err) {
-    console.error(
-      "Error:",
-      err instanceof Error ? err.message : String(err),
+    process.stderr.write(
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
-    process.exit(1);
+    exitCleanly(1);
   }
 }
 
-void main();
+main().catch((err) => {
+  process.stderr.write(
+    `Error: ${err instanceof Error ? err.message : String(err)}\n`,
+  );
+  process.exit(1);
+});

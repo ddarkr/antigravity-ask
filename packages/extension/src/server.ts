@@ -19,7 +19,6 @@ export interface BridgeServers {
 }
 
 export const BridgeCommands = {
-  // Antigravity Native Commands
   SEND_TEXT_TO_CHAT: "antigravity.sendTextToChat",
   SEND_PROMPT_TO_AGENT: "antigravity.sendPromptToAgentPanel",
   ACCEPT_AGENT_STEP: "antigravity.agent.acceptAgentStep",
@@ -49,25 +48,36 @@ export function createBridgeServer(options: {
 
   // LS Bridge status
   app.get("/lsstatus", async (c) => {
-    return c.json(await services.monitoring.getLsStatus());
+    try {
+      return c.json(await services.monitoring.getLsStatus());
+    } catch (e: any) {
+      return c.json({ error: `LS Status: ${e.message}` }, 500);
+    }
   });
 
   // 2. Send Message to Chat (Direct Command)
   app.post("/send", async (c) => {
+    let body: unknown;
     try {
-      const { text } = await c.req.json();
-      if (!text) {
-        return c.json({ error: "Text is required" }, 400);
-      }
-      
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return c.json({ error: "Body must be an object" }, 400);
+    }
+    const obj = body as Record<string, unknown>;
+    const text = obj.text;
+    if (typeof text !== "string" || text === "") {
+      return c.json({ error: "text is required and must be a non-empty string" }, 400);
+    }
+
+    try {
       console.log(`[Bridge] Received HTTP /send request. Text: "${text}"`);
-
       const legacySendResult = await services.legacySend.sendPromptToNewConversation(text);
-
       console.log(`[Bridge] Command executed successfully without throwing.`);
-      
-      return c.json({ 
-        success: true, 
+      return c.json({
+        success: true,
         conversation_id: legacySendResult.conversationId,
         method: "native_api",
         debug_info: {
@@ -86,9 +96,22 @@ export function createBridgeServer(options: {
 
   // 3. Actions (New Chat, Run, Allow, etc.)
   app.post("/action", async (c) => {
+    let body: unknown;
     try {
-      const { type } = await c.req.json();
-      
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return c.json({ error: "Body must be an object" }, 400);
+    }
+    const obj = body as Record<string, unknown>;
+    const type = obj.type;
+    if (typeof type !== "string" || type === "") {
+      return c.json({ error: "type is required and must be a non-empty string" }, 400);
+    }
+
+    try {
       switch (type) {
         case BRIDGE_ACTIONS.startNewChat:
           await services.actions.startNewChat();
@@ -111,7 +134,6 @@ export function createBridgeServer(options: {
         default:
           return c.json({ error: "Unknown action type" }, 400);
       }
-
       return c.json({ success: true, action: type });
     } catch (e: any) {
       return c.json({ error: e.message || "Failed to execute action" }, 500);
@@ -129,13 +151,21 @@ export function createBridgeServer(options: {
   });
 
   app.get("/dump", async (c) => {
-    const allCommands = await vscode.commands.getCommands(true);
-    const agCommands = allCommands.filter(cmd => cmd.toLowerCase().includes("antigravity") || cmd.toLowerCase().includes("chat") || cmd.toLowerCase().includes("agent"));
-    return c.json({ commands: agCommands });
+    try {
+      const allCommands = await vscode.commands.getCommands(true);
+      const agCommands = allCommands.filter(cmd => cmd.toLowerCase().includes("antigravity") || cmd.toLowerCase().includes("chat") || cmd.toLowerCase().includes("agent"));
+      return c.json({ commands: agCommands });
+    } catch (e: any) {
+      return c.json({ error: `Dump: ${e.message}` }, 500);
+    }
   });
 
   app.get("/dump-ls", async (c) => {
-    return c.json(await services.monitoring.getLsDebugSummary());
+    try {
+      return c.json(await services.monitoring.getLsDebugSummary());
+    } catch (e: any) {
+      return c.json({ error: `LS Debug: ${e.message}` }, 500);
+    }
   });
 
   // Temporary: return the full diagnostics JSON for CSRF key discovery
@@ -164,7 +194,7 @@ export function createBridgeServer(options: {
   });
 
   app.get("/probe-csrf", async (c) => {
-    const results: Record<string, any> = {};
+    const results: Record<string, unknown> = {};
     const cmds = [
       "antigravity.initializeAgent",
       "antigravity.getChromeDevtoolsMcpUrl",
@@ -179,14 +209,25 @@ export function createBridgeServer(options: {
     }
     return c.json(results);
   });
+
   app.post("/chat", async (c) => {
+    let body: unknown;
     try {
-      const body = await c.req.json();
-      if (!body.text) {
-        return c.json({ error: "Text is required" }, 400);
-      }
-      
-      const jobId = await services.chatQueue.enqueue(body.text, body.model);
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return c.json({ error: "Body must be an object" }, 400);
+    }
+    const obj = body as Record<string, unknown>;
+    const text = obj.text;
+    if (typeof text !== "string" || text === "") {
+      return c.json({ error: "text is required and must be a non-empty string" }, 400);
+    }
+
+    try {
+      const jobId = await services.chatQueue.enqueue(text, obj.model as string | undefined);
       return c.json({ success: true, job_id: jobId });
     } catch (e: any) {
       console.error("[Bridge] POST /chat failed:", e);
@@ -198,11 +239,9 @@ export function createBridgeServer(options: {
     try {
       const jobId = c.req.param("jobId");
       const job = await services.chatQueue.getJob(jobId);
-      
       if (!job) {
         return c.json({ error: "Job not found" }, 404);
       }
-      
       return c.json({
         id: job.id,
         status: job.status,
@@ -216,11 +255,18 @@ export function createBridgeServer(options: {
   });
 
   app.get("/conversation/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!id || id.trim() === "") {
+      return c.json({ error: "id parameter is required" }, 400);
+    }
     try {
-      const id = c.req.param("id");
       return c.json(await services.conversation.getConversation(id));
     } catch (e: any) {
-      return c.json({ error: `LS GetCascadeTrajectory: ${e.message}` }, 500);
+      const msg = e.message ?? String(e);
+      if (msg.includes("not found")) {
+        return c.json({ error: `Conversation not found: ${id}` }, 404);
+      }
+      return c.json({ error: `LS GetCascadeTrajectory: ${msg}` }, 500);
     }
   });
 
@@ -233,8 +279,11 @@ export function createBridgeServer(options: {
   });
 
   app.post("/focus/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!id || id.trim() === "") {
+      return c.json({ error: "id parameter is required" }, 400);
+    }
     try {
-      const id = c.req.param("id");
       await services.conversation.focusConversation(id);
       return c.json({ success: true });
     } catch (e: any) {
@@ -243,8 +292,11 @@ export function createBridgeServer(options: {
   });
 
   app.post("/openchat/:id", async (c) => {
+    const id = c.req.param("id");
+    if (!id || id.trim() === "") {
+      return c.json({ error: "id parameter is required" }, 400);
+    }
     try {
-      const id = c.req.param("id");
       await services.conversation.openConversation(id);
       return c.json({ success: true, focusedId: id });
     } catch (e: any) {
@@ -254,13 +306,11 @@ export function createBridgeServer(options: {
 
   app.get("/artifacts/:convoId", async (c) => {
     try {
-      const { convoId } = c.req.param();
+      const convoId = c.req.param("convoId");
       const path = c.req.query("path");
-      
       if (!path) {
         return c.json({ error: "Path parameter is required" }, 400);
       }
-      
       const content = readArtifact(convoId, path);
       if (content === null) {
         return c.json({ error: "Artifact not found" }, 404);
@@ -291,7 +341,7 @@ export function createBridgeServer(options: {
   wsServer.on("connection", (ws) => {
     console.log("[Bridge] WS Client connected");
     ws.on("message", (_msg) => {
-      // Future: Real-time event streaming fallback 
+      // Future: Real-time event streaming fallback
     });
     ws.send(JSON.stringify({ type: "bridge_ready", version: "1.0.0" }));
   });
@@ -302,6 +352,7 @@ export function createBridgeServer(options: {
     httpServer,
     wsServer,
     close: () => {
+      services.chatQueue.dispose();
       httpServer.close();
       wsServer.close();
     },
