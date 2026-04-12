@@ -52,8 +52,8 @@ function isCapacityExhaustedError(error: unknown): boolean {
 function isNonRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message;
-    // HTTP 4xx/5xx client errors — do not retry
-    if (/^HTTP [45]\d\d:/.test(msg)) return true;
+    // HTTP 4xx client errors — do not retry (5xx may be transient)
+    if (/^HTTP 4\d\d:/.test(msg)) return true;
     // Explicitly marked non-retryable by retry wrapper
     if ((error as RetryableError).retryable === false) return true;
   }
