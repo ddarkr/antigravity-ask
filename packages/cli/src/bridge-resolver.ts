@@ -77,14 +77,6 @@ async function getBridgeStatus(baseUrl: string): Promise<BridgeDiscoveryStatus |
 }
 
 if (options.explicitBaseUrl) {
-    // Verify the bridge is actually ready before using it
-    const status = await getBridgeStatus(options.explicitBaseUrl);
-    if (!status?.ready) {
-      throw new Error(
-        `Bridge at ${options.explicitBaseUrl} is not ready. ` +
-        "Ensure Antigravity LS is running.",
-      );
-    }
     return {
       baseUrl: options.explicitBaseUrl,
       launchedWorkspace: false,

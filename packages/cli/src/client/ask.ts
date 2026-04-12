@@ -54,8 +54,6 @@ function isNonRetryableError(error: unknown): boolean {
     const msg = error.message;
     // HTTP 4xx client errors — do not retry (5xx may be transient)
     if (/^HTTP 4\d\d:/.test(msg)) return true;
-    // Explicitly marked non-retryable by retry wrapper
-    if ((error as RetryableError).retryable === false) return true;
   }
   return false;
 }
