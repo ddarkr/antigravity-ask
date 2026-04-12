@@ -33,8 +33,6 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@^11.5.1
 
       - name: Show publish environment
         run: |
