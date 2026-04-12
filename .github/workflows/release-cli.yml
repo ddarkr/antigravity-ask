@@ -31,14 +31,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-
-      - name: Show publish environment
-        run: |
-          node -v
-          npm -v
-          npm config get registry
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -60,6 +52,4 @@ jobs:
         run: pnpm build
 
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ""
+        run: npm publish --access public --registry https://registry.npmjs.org
