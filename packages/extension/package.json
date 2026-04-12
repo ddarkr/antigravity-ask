@@ -2,7 +2,7 @@
   "name": "antigravity-bridge-extension",
   "displayName": "Antigravity Ask Bridge",
   "description": "Automate Antigravity IDE — REST API and the antigravity-ask CLI for coding agents",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "publisher": "ddarkr",
   "license": "MIT",
   "preview": true,
