@@ -1,6 +1,6 @@
 {
   "name": "antigravity-ask",
-  "version": "0.2.15",
+  "version": "0.2.17",
   "description": "CLI and shared client utilities for Antigravity chat automation",
   "license": "MIT",
   "repository": {
