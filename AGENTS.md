@@ -32,11 +32,11 @@ This is a monorepo managed with `pnpm-workspace.yaml`, and the currently active 
 | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | `packages/extension/src/extension.ts` | VS Code extension entry point. Handles `activate` / `deactivate`, legacy file recovery, and server startup |
 | `packages/extension/src/server.ts` | Defines the Hono-based HTTP server (port `5820`) and WebSocket server (port `5821`) and routes all REST APIs |
-| `packages/extension/src/bridge-services.ts` | Implements SDK-backed conversation/action/monitoring services and the legacy `/send` fallback |
+| `packages/extension/src/bridge-services.ts` | Implements SDK-backed conversation/action/monitoring services |
 | `packages/extension/src/artifacts.ts` | Utility for reading conversation artifact files under `~/.gemini/antigravity/brain/` |
 | `packages/cli/src/cli.ts` | Terminal CLI entry point in the form `antigravity-ask <command>` |
 | `packages/cli/src/contracts/*` | Shared bridge API paths, actions, conversation response types, and helpers |
-| `packages/cli/src/client/*` | Bridge HTTP client and `ask` polling utilities |
+| `packages/cli/src/client/*` | Bridge HTTP client and `ask`/`send` polling utilities |
 
 > ⚠️ Legacy files from the old DOM/JS injection architecture (`queue.ts`, `patcher.ts`, `selectors.ts`) have already been removed.
 > They may still appear in old documentation or commits, but they are not part of the active runtime path.
@@ -49,14 +49,13 @@ This is a monorepo managed with `pnpm-workspace.yaml`, and the currently active 
 | ------ | ---- | ----------- |
 | GET | `/ping` | Health check. Returns `{ status: "ok", mode: "native_api" }` |
 | GET | `/lsstatus` | Check SDK LS connection status (port, csrf presence, etc.) |
-| POST | `/send` | Legacy Native API fallback that opens a new conversation and sends a prompt |
-| POST | `/chat` | Create an SDK-backed headless Cascade and send a message. Returns `job_id` for polling |
-| GET | `/chat/:jobId` | Poll job status and get `conversation_id` when completed |
+| POST | `/conversations` | Create an SDK-backed headless conversation and send the initial prompt. Returns `job_id` for polling |
+| GET | `/conversations/jobs/:jobId` | Poll job status and get `conversation_id` when completed |
+| GET | `/conversations` | List all conversations and their states (SDK LS) |
+| GET | `/conversations/:id` | Fetch the full trajectory for a specific conversation (SDK raw RPC) |
+| POST | `/conversations/:id/focus` | Focus a specific conversation in the UI (SDK LS) |
+| POST | `/conversations/:id/open` | Open a specific conversation in the UI |
 | POST | `/action` | Run an action (`start_new_chat`, `focus_chat`, `allow`, `reject_step`, `terminal_run`) |
-| GET | `/conversation/:id` | Fetch the full trajectory for a specific conversation (SDK raw RPC) |
-| GET | `/list-cascades` | List all Cascades and their states (SDK LS) |
-| POST | `/focus/:id` | Focus a specific Cascade in the UI (SDK LS) |
-| POST | `/openchat/:id` | Open a specific cascadeId chat through a VS Code command |
 | GET | `/artifacts` | Return conversations under `~/.gemini/antigravity/brain/` |
 | GET | `/artifacts/:convoId` | Return the contents of a specific artifact file (`?path=filename`) |
 | GET | `/dump` | List `antigravity.*` VS Code commands (debugging) |
@@ -78,6 +77,7 @@ The core implementation lives in `packages/extension/src/bridge-services.ts`, wh
 | conversation readback | `GetCascadeTrajectory` | Fetch the full conversation trajectory (steps) |
 | cascade list | `sdk.ls.listCascades()` | Fetch summaries of all conversations |
 | focus | `sdk.ls.focusCascade()` | Focus a specific conversation |
+| open | VS Code command bridge | Open a specific conversation in the UI |
 
 Supported model IDs come from `antigravity-sdk`'s `Models`.
 
@@ -90,26 +90,26 @@ The CLI is built and distributed from `packages/cli`. During development, you ca
 You can override the server address with the `AG_BRIDGE_URL` environment variable (default: `http://localhost:5820`).
 
 ```bash
-npx antigravity-ask ask <text>           # send a headless prompt, wait for the agent to finish, print the result
-npx antigravity-ask send <text>          # send a headless prompt asynchronously, return job_id
-npx antigravity-ask ping                 # check server status
-npx antigravity-ask action <type>        # run an action (start_new_chat, focus_chat, allow, reject_step, terminal_run)
-npx antigravity-ask artifacts            # list conversation artifacts
-npx antigravity-ask conversation <id>    # fetch a specific conversation
-npx antigravity-ask artifact <id> <path> # read a specific artifact file
+npx antigravity-ask ask --variant <model> <text>   # create a headless conversation, wait for completion, print the result
+npx antigravity-ask send --variant <model> <text>  # create a headless conversation asynchronously, return job_id
+npx antigravity-ask ping                           # check server status
+npx antigravity-ask action <type>                  # run an action (start_new_chat, focus_chat, allow, reject_step, terminal_run)
+npx antigravity-ask artifacts                      # list conversation artifacts
+npx antigravity-ask conversation <id>              # fetch a specific conversation
+npx antigravity-ask artifact <id> <path>           # read a specific artifact file
 
 # Aliases
-npx antigravity-ask status               # alias for ping
-npx antigravity-ask new-chat             # alias for action start_new_chat
-npx antigravity-ask conversations        # alias for artifacts
+npx antigravity-ask status                         # alias for ping
+npx antigravity-ask new-chat                       # alias for action start_new_chat
+npx antigravity-ask conversations                  # alias for artifacts
 ```
 
-### How the `ask` command works
+### How the `ask` and `send` commands work
 
-1. Send a headless prompt through `/chat` and receive a `job_id`
-2. Poll `/chat/:jobId` every 3 seconds until status is `completed`
-3. Get `conversation_id` from the completed job
-4. Fetch the full conversation via `/conversation/:id` and extract the text response (stdout for the result, stderr for progress)
+1. Create a headless conversation through `POST /conversations` and receive a `job_id`
+2. `ask` polls `GET /conversations/jobs/:jobId` until status is `completed`; `send` returns the `job_id` immediately
+3. When completed, read `conversation_id` from the job status
+4. Fetch the full conversation via `GET /conversations/:id` and extract the text response (stdout for the result, stderr for progress)
 
 ---
 
@@ -220,4 +220,4 @@ This logic is a leftover from the old era when `patcher.ts` injected JavaScript 
 - `queue.ts` — Command queue from the DOM polling era (`BridgeState` class). Currently unused.
 - `selectors.ts` — DOM selector constants (`SELECTORS`). Currently unused.
 - `bridge-payload.js` / `bridge-payload.html` — Old payload files that were injected into the webview. Currently unused.
-- `/send` — Kept only as a legacy Native API fallback route. The default path for CLI `ask` / `send` is `/chat`.
+- Older pre-cutover conversation routes are removed and should not be treated as active APIs.

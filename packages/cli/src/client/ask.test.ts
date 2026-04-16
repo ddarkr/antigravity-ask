@@ -3,10 +3,16 @@ import type { BridgeHttpClient } from "./http";
 import { waitForAskResponse } from "./ask";
 
 describe("waitForAskResponse", () => {
-  it("returns once the conversation is finished", async () => {
+  it("creates a conversation with the requested model and returns once finished", async () => {
+    const createConversation = vi.fn(async () => ({
+      success: true,
+      job_id: "job-1",
+    }));
     const client = createClient({
-      sendVisible: vi.fn(async () => ({
-        success: true,
+      createConversation,
+      getConversationJob: vi.fn(async () => ({
+        id: "job-1",
+        status: "completed",
         conversation_id: "convo-1",
       })),
       getConversation: vi.fn(async () => ({
@@ -17,25 +23,36 @@ describe("waitForAskResponse", () => {
           ],
         },
       })),
-      listCascades: vi.fn(async () => ({
+      listConversations: vi.fn(async () => ({
         "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" },
       })),
     });
 
     const result = await waitForAskResponse(client, "hello", {
+      model: "MODEL_CLAUDE_4_SONNET",
       pollIntervalMs: 1,
       sleep: async () => {},
     });
 
+    expect(createConversation).toHaveBeenCalledWith(
+      "hello",
+      "MODEL_CLAUDE_4_SONNET",
+    );
     expect(result.conversationId).toBe("convo-1");
     expect(result.text).toBe("done");
   });
 
   it("keeps polling until the conversation becomes finished", async () => {
-    const sendVisible = vi.fn(async () => ({
+    const createConversation = vi.fn(async () => ({
       success: true,
-      conversation_id: "convo-1",
+      job_id: "job-1",
     }));
+    const getConversationJob = vi
+      .fn<BridgeHttpClient["getConversationJob"]>()
+      .mockResolvedValueOnce({ id: "job-1", status: "processing" })
+      .mockResolvedValueOnce({ id: "job-1", status: "completed", conversation_id: "convo-1" })
+      .mockResolvedValueOnce({ id: "job-1", status: "completed", conversation_id: "convo-1" })
+      .mockResolvedValueOnce({ id: "job-1", status: "completed", conversation_id: "convo-1" });
     const getConversation = vi
       .fn<BridgeHttpClient["getConversation"]>()
       .mockResolvedValueOnce({
@@ -57,28 +74,39 @@ describe("waitForAskResponse", () => {
           ],
         },
       });
-    const listCascades = vi
-      .fn<BridgeHttpClient["listCascades"]>()
+    const listConversations = vi
+      .fn<BridgeHttpClient["listConversations"]>()
       .mockResolvedValueOnce({ "convo-1": { status: "CASCADE_RUN_STATUS_RUNNING" } })
       .mockResolvedValueOnce({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } });
 
-    const client = createClient({ sendVisible, getConversation, listCascades });
+    const client = createClient({
+      createConversation,
+      getConversationJob,
+      getConversation,
+      listConversations,
+    });
 
     const result = await waitForAskResponse(client, "hello", {
       pollIntervalMs: 1,
       sleep: async () => {},
     });
 
-    expect(sendVisible).toHaveBeenCalledTimes(1);
+    expect(createConversation).toHaveBeenCalledTimes(1);
+    expect(getConversationJob).toHaveBeenCalledTimes(4);
     expect(getConversation).toHaveBeenCalledTimes(3);
-    expect(listCascades).toHaveBeenCalledTimes(2);
+    expect(listConversations).toHaveBeenCalledTimes(2);
     expect(result.text).toBe("ready");
   });
 
   it("recovers from a transient conversation polling error", async () => {
     const onPollError = vi.fn();
     const client = createClient({
-      sendVisible: vi.fn(async () => ({ success: true, conversation_id: "convo-1" })),
+      createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
+      getConversationJob: vi.fn(async () => ({
+        id: "job-1",
+        status: "completed",
+        conversation_id: "convo-1",
+      })),
       getConversation: vi
         .fn<BridgeHttpClient["getConversation"]>()
         .mockRejectedValueOnce(new Error("HTTP 500: LS GetCascadeTrajectory: 403 Invalid CSRF token"))
@@ -90,7 +118,7 @@ describe("waitForAskResponse", () => {
             ],
           },
         }),
-      listCascades: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
+      listConversations: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
     });
 
     const result = await waitForAskResponse(client, "hello", {
@@ -106,7 +134,12 @@ describe("waitForAskResponse", () => {
   it("recovers from a transient cascade status polling error", async () => {
     const onPollError = vi.fn();
     const client = createClient({
-      sendVisible: vi.fn(async () => ({ success: true, conversation_id: "convo-1" })),
+      createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
+      getConversationJob: vi.fn(async () => ({
+        id: "job-1",
+        status: "completed",
+        conversation_id: "convo-1",
+      })),
       getConversation: vi.fn(async () => ({
         trajectory: {
           steps: [
@@ -115,8 +148,8 @@ describe("waitForAskResponse", () => {
           ],
         },
       })),
-      listCascades: vi
-        .fn<BridgeHttpClient["listCascades"]>()
+      listConversations: vi
+        .fn<BridgeHttpClient["listConversations"]>()
         .mockRejectedValueOnce(new Error("HTTP 500: LS ListCascades: 403 Invalid CSRF token"))
         .mockResolvedValueOnce({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } }),
     });
@@ -131,14 +164,19 @@ describe("waitForAskResponse", () => {
     expect(onPollError).toHaveBeenCalledTimes(1);
   });
 
-  it("retries sendVisible on MODEL_CAPACITY_EXHAUSTED and succeeds", async () => {
+  it("retries createConversation on MODEL_CAPACITY_EXHAUSTED and succeeds", async () => {
     const onRetry = vi.fn();
-    const sendVisible = vi
-      .fn<BridgeHttpClient["sendVisible"]>()
+    const createConversation = vi
+      .fn<BridgeHttpClient["createConversation"]>()
       .mockRejectedValueOnce(new Error("HTTP 503: MODEL_CAPACITY_EXHAUSTED — try again later"))
-      .mockResolvedValueOnce({ success: true, conversation_id: "convo-1" });
+      .mockResolvedValueOnce({ success: true, job_id: "job-1" });
     const client = createClient({
-      sendVisible,
+      createConversation,
+      getConversationJob: vi.fn(async () => ({
+        id: "job-1",
+        status: "completed",
+        conversation_id: "convo-1",
+      })),
       getConversation: vi.fn(async () => ({
         trajectory: {
           steps: [
@@ -147,16 +185,26 @@ describe("waitForAskResponse", () => {
           ],
         },
       })),
-      listCascades: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
+      listConversations: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
     });
 
     const result = await waitForAskResponse(client, "hello", {
+      model: "MODEL_GOOGLE_GEMINI_RIFTRUNNER",
       pollIntervalMs: 1,
       sleep: async () => {},
       onRetry,
     });
 
-    expect(sendVisible).toHaveBeenCalledTimes(2);
+    expect(createConversation).toHaveBeenNthCalledWith(
+      1,
+      "hello",
+      "MODEL_GOOGLE_GEMINI_RIFTRUNNER",
+    );
+    expect(createConversation).toHaveBeenNthCalledWith(
+      2,
+      "hello",
+      "MODEL_GOOGLE_GEMINI_RIFTRUNNER",
+    );
     expect(onRetry).toHaveBeenCalledWith(1, expect.any(Number), "MODEL_CAPACITY_EXHAUSTED");
     expect(result.text).toBe("done");
   });
@@ -168,10 +216,10 @@ describe("waitForAskResponse", () => {
 
   it("gives up after exhausting retries and throws the last error", async () => {
     const onRetry = vi.fn();
-    const sendVisible = vi
-      .fn<BridgeHttpClient["sendVisible"]>()
+    const createConversation = vi
+      .fn<BridgeHttpClient["createConversation"]>()
       .mockRejectedValue(new Error("HTTP 503: MODEL_CAPACITY_EXHAUSTED — try again later"));
-    const client = createClient({ sendVisible });
+    const client = createClient({ createConversation });
 
     await expect(
       waitForAskResponse(client, "hello", {
@@ -182,7 +230,7 @@ describe("waitForAskResponse", () => {
       }),
     ).rejects.toThrow("MODEL_CAPACITY_EXHAUSTED");
 
-    expect(sendVisible).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
+    expect(createConversation).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     expect(onRetry).toHaveBeenCalledTimes(2);
   });
 
@@ -191,9 +239,9 @@ describe("waitForAskResponse", () => {
   // The 120s timeout is caused by tinypool killing the worker during cleanup, not the implementation.
   it.skip("does not count non-retryable intermediate states as retry attempts", async () => {});
 
-  it("fails immediately when visible send does not provide a conversation id", async () => {
+  it("fails immediately when createConversation does not provide a job id", async () => {
     const client = createClient({
-      sendVisible: vi.fn(async () => ({ success: true, conversation_id: null })),
+      createConversation: vi.fn(async () => ({ success: true, job_id: undefined })),
     });
 
     await expect(
@@ -202,14 +250,19 @@ describe("waitForAskResponse", () => {
         pollTimeoutMs: 50,
         sleep: async () => {},
       }),
-    ).rejects.toThrow("Failed to obtain conversation_id after sending via visible chat");
+    ).rejects.toThrow("Failed to obtain job_id after creating a conversation");
   });
 
-  it("times out when the visible conversation never becomes idle and finished", async () => {
+  it("times out when the conversation never becomes idle and finished", async () => {
     const client = createClient({
-      sendVisible: vi.fn(async () => ({ success: true, conversation_id: "convo-1" })),
+      createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
+      getConversationJob: vi.fn(async () => ({
+        id: "job-1",
+        status: "completed",
+        conversation_id: "convo-1",
+      })),
       getConversation: vi.fn(async () => ({ trajectory: { steps: [{ type: "CORTEX_STEP_TYPE_USER_INPUT" }] } })),
-      listCascades: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_RUNNING" } })),
+      listConversations: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_RUNNING" } })),
     });
 
     await expect(
@@ -226,12 +279,16 @@ function createClient(overrides: Partial<BridgeHttpClient>): BridgeHttpClient {
   return {
     request: vi.fn(),
     ping: vi.fn(),
-    send: vi.fn(),
-    sendVisible: vi.fn(async () => ({ success: true, conversation_id: "convo-1" })),
-    chat: vi.fn(async () => ({ success: true, job_id: "job-1" })),
-    getJobStatus: vi.fn(),
-    listCascades: vi.fn(),
+    createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
+    getConversationJob: vi.fn(async () => ({
+      id: "job-1",
+      status: "completed",
+      conversation_id: "convo-1",
+    })),
+    listConversations: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
     getConversation: vi.fn(async () => ({ trajectory: { steps: [] } })),
+    focusConversation: vi.fn(),
+    openConversation: vi.fn(),
     runAction: vi.fn(),
     ...overrides,
   };

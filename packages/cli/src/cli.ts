@@ -51,15 +51,15 @@ Antigravity Ask Bridge CLI
 Global Options:
   --url <baseUrl>                        Override the full bridge base URL
   --http-port <port>                    Override the bridge HTTP port on localhost
-  --variant <name>                      Select model variant for send only (${Object.keys(MODEL_VARIANTS).join(", ")})
+  --variant <name>                      Select model variant (${Object.keys(MODEL_VARIANTS).join(", ")})
 
 Commands:
-  ask <text>                             Send a prompt and wait until the agent finishes to print the response
-  send <text>                            Start a headless chat prompt (async, returns job_id)
+  ask <text>                             Create a headless conversation and wait until the agent finishes to print the response
+  send <text>                            Create a headless conversation asynchronously (returns job_id)
   ping                                   Check server status
   action <type>                          Execute an action (e.g., start_new_chat, focus_chat, allow, reject_step)
   artifacts                              List conversations/artifacts
-  conversation <id>                      Read full conversation chat data
+  conversation <id>                      Read full conversation data
   artifact <convoId> <path>              Read an artifact file
 
 Aliases (Legacy):
@@ -88,8 +88,8 @@ Aliases (Legacy):
           exitCleanly(1);
         }
 
-        console.log("Sending prompt...");
-        const result = await client.send(text, selectedModel);
+        console.log("Creating conversation...");
+        const result = await client.createConversation(text, selectedModel);
         console.log(JSON.stringify(result, null, 2));
         break;
       }

@@ -39,35 +39,36 @@ Follow this order unless you already know the bridge is reachable.
    - If it fails, stop and verify that the extension host is running and the bridge port is correct.
 
 2. **Choose sync vs async flow**
-   - Use `ask` when you want one final answer.
-   - Use `send` when you want to inspect the conversation or artifacts yourself.
+   - Use `ask` when you want one final answer from a headless conversation and want the CLI to wait for completion.
+   - Use `send` when you want the same headless conversation creation flow but need the `job_id` immediately for later polling.
+   - Both commands support model selection with `--variant`.
 
 3. **Inspect outputs deliberately**
    - `ask` writes progress to stderr and the final answer to stdout.
-   - `conversation`, `artifacts`, and `action` return JSON.
+   - `send`, `conversation`, `artifacts`, and `action` return JSON.
    - `artifact` returns raw file contents.
 
 4. **Escalate to the HTTP API only when necessary**
-   - If you need an arbitrary numeric `model` id or lower-level integration, use the bridge HTTP API instead of the CLI shortcut.
+   - If you need lower-level integration, use the bridge HTTP API directly.
+   - The canonical conversation surface is `POST /conversations`, `GET /conversations/jobs/:jobId`, `GET /conversations`, `GET /conversations/:id`, `POST /conversations/:id/focus`, and `POST /conversations/:id/open`.
 
 ## Golden path
 
 ```bash
 npx antigravity-ask ping
-npx antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask ask --variant gemini-riftrunner "Summarize the current bridge architecture."
 ```
 
 ## Async inspection flow
 
 ```bash
-npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask send --variant gemini-riftrunner "Open a new chat and say hello"
 # → returns { "success": true, "job_id": "xxx" }
-# Poll status: GET /chat/:jobId (returns conversation_id when completed)
+# Poll status: GET /conversations/jobs/:jobId
 npx antigravity-ask conversation <conversation_id>
 npx antigravity-ask artifacts
 npx antigravity-ask artifact <conversation_id> output.md
 ```
-
 
 ## URL overrides
 

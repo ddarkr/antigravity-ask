@@ -1,13 +1,14 @@
 export const BRIDGE_PATHS = {
   ping: "/ping",
-  send: "/chat",
-  visibleSend: "/send",
-  chat: "/chat",
-  chatJob: (jobId: string) => `/chat/${jobId}`,
+  conversations: "/conversations",
+  conversationJob: (jobId: string) => `/conversations/jobs/${jobId}`,
+  conversation: (conversationId: string) => `/conversations/${conversationId}`,
+  conversationFocus: (conversationId: string) =>
+    `/conversations/${conversationId}/focus`,
+  conversationOpen: (conversationId: string) =>
+    `/conversations/${conversationId}/open`,
   action: "/action",
-  listCascades: "/list-cascades",
   artifacts: "/artifacts",
-  conversation: (conversationId: string) => `/conversation/${conversationId}`,
   artifact: (conversationId: string, artifactPath: string) =>
     `/artifacts/${conversationId}?path=${encodeURIComponent(artifactPath)}`,
 } as const;
@@ -28,13 +29,13 @@ export function isBridgeAction(value: string): value is BridgeAction {
   return Object.values(BRIDGE_ACTIONS).includes(value as BridgeAction);
 }
 
-export interface SendResponse {
+export interface ConversationCreateResponse {
   success?: boolean;
   job_id?: string;
   conversation_id?: string | null;
 }
 
-export interface ChatJobResponse {
+export interface ConversationJobResponse {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
   conversation_id?: string;
@@ -42,8 +43,8 @@ export interface ChatJobResponse {
   created_at?: string;
 }
 
-export interface CascadeStatusEntry {
+export interface ConversationStatusEntry {
   status?: string;
 }
 
-export type CascadeStatusMap = Record<string, CascadeStatusEntry | undefined>;
+export type ConversationStatusMap = Record<string, ConversationStatusEntry | undefined>;

@@ -48,46 +48,185 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LsStatusResponse'
-  /send:
+  /conversations:
     post:
       tags: [Conversations]
-      summary: Send a prompt through the legacy native command path
+      summary: Create a headless conversation
       description: |
-        Opens a new conversation and sends the given text through the legacy native API flow.
-        Prefer `/chat` for current headless conversation creation.
-      operationId: postSendLegacy
+        Creates a new headless conversation, sends the provided text, and returns a `job_id`.
+        Poll `GET /conversations/jobs/{jobId}` until the job reaches `completed`, then read
+        `conversation_id` from the job result and fetch the trajectory from `GET /conversations/{id}`.
+      operationId: createConversation
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TextRequest'
+              $ref: '#/components/schemas/CreateConversationRequest'
       responses:
         '200':
-          description: Prompt accepted by the legacy flow.
+          description: Headless conversation accepted and queued.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LegacySendResponse'
+                $ref: '#/components/schemas/ConversationCreateResponse'
         '400':
-          description: Missing text.
+          description: Invalid request body or missing text.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Bridge command execution failed.
+          description: Conversation creation failed.
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ErrorResponse'
-                  - type: object
-                    properties:
-                      attempted_command:
-                        type: string
-                      error_dump:
-                        type: string
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [Conversations]
+      summary: List known conversations
+      description: Returns the current conversation status map keyed by conversation id.
+      operationId: listConversations
+      responses:
+        '200':
+          description: Conversation status entries keyed by conversation id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationStatusMap'
+        '500':
+          description: Failed to list conversations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /conversations/jobs/{jobId}:
+    get:
+      tags: [Conversations]
+      summary: Get conversation job status
+      description: Returns the state of a previously created headless conversation job.
+      operationId: getConversationJob
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job state for the requested headless conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationJobResponse'
+        '404':
+          description: Job not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to read the job state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /conversations/{id}:
+    get:
+      tags: [Conversations]
+      summary: Get a conversation trajectory
+      operationId: getConversationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Raw conversation trajectory returned by the SDK LS RPC.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LooseObject'
+        '400':
+          description: Missing or empty conversation id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to fetch the conversation trajectory.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /conversations/{id}/focus:
+    post:
+      tags: [Conversations]
+      summary: Focus an existing conversation in the UI
+      operationId: postFocusConversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation focused.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Missing or empty conversation id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to focus the conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /conversations/{id}/open:
+    post:
+      tags: [Conversations]
+      summary: Open an existing conversation in the Antigravity UI
+      operationId: postOpenConversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenConversationResponse'
+        '400':
+          description: Missing or empty conversation id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to open the conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /action:
     post:
       tags: [Actions]
@@ -182,135 +321,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Artifact lookup failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /chat:
-    post:
-      tags: [Conversations]
-      summary: Create a headless conversation and send a prompt
-      operationId: postChat
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChatRequest'
-      responses:
-        '200':
-          description: Headless conversation created successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConversationCreatedResponse'
-        '400':
-          description: Missing text.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Conversation creation failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /conversation/{id}:
-    get:
-      tags: [Conversations]
-      summary: Get a conversation trajectory
-      operationId: getConversationById
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Raw conversation trajectory returned by the SDK LS RPC.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LooseObject'
-        '500':
-          description: Failed to fetch the conversation trajectory.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /list-cascades:
-    get:
-      tags: [Conversations]
-      summary: List known cascades
-      operationId: getListCascades
-      responses:
-        '200':
-          description: A map keyed by cascade id.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  $ref: '#/components/schemas/CascadeSummary'
-        '500':
-          description: Failed to list cascades.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /focus/{id}:
-    post:
-      tags: [Conversations]
-      summary: Focus an existing conversation in the UI
-      operationId: postFocusConversation
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Conversation focused.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '500':
-          description: Failed to focus the conversation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /openchat/{id}:
-    post:
-      tags: [Conversations]
-      summary: Open an existing conversation in the Antigravity UI
-      operationId: postOpenChat
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Conversation opened.
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [success, focusedId]
-                properties:
-                  success:
-                    type: boolean
-                    const: true
-                  focusedId:
-                    type: string
-        '500':
-          description: Failed to open the conversation.
           content:
             application/json:
               schema:
@@ -482,14 +492,7 @@ components:
           type: integer
         useTls:
           type: boolean
-    TextRequest:
-      type: object
-      required: [text]
-      properties:
-        text:
-          type: string
-          minLength: 1
-    ChatRequest:
+    CreateConversationRequest:
       type: object
       required: [text]
       properties:
@@ -497,8 +500,10 @@ components:
           type: string
           minLength: 1
         model:
-          type: integer
-          description: Optional Antigravity model id. Defaults to `Models.GEMINI_FLASH`.
+          oneOf:
+            - type: string
+            - type: integer
+          description: Optional Antigravity model identifier forwarded to headless conversation creation.
     ActionRequest:
       type: object
       required: [type]
@@ -529,48 +534,54 @@ components:
         success:
           type: boolean
           const: true
-    ConversationCreatedResponse:
+    ConversationCreateResponse:
       type: object
-      required: [success, conversation_id]
+      required: [success, job_id]
       properties:
         success:
           type: boolean
           const: true
+        job_id:
+          type: string
+    ConversationJobResponse:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
         conversation_id:
           type: string
-    LegacySendResponse:
+        error:
+          type: string
+        created_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: string
+          description: Creation timestamp as returned by the bridge.
+    OpenConversationResponse:
       type: object
-      required: [success, conversation_id, method, debug_info]
+      required: [success, focusedId]
       properties:
         success:
           type: boolean
           const: true
-        conversation_id:
-          type:
-            - string
-            - 'null'
-        method:
+        focusedId:
           type: string
-          const: native_api
-        debug_info:
-          type: object
-          required:
-            - attempted_command
-            - command_exists
-            - polled_trajectories_count
-            - before_ids_count
-            - last_trajectories
-          properties:
-            attempted_command:
-              type: string
-            command_exists:
-              type: boolean
-            polled_trajectories_count:
-              type: integer
-            before_ids_count:
-              type: integer
-            last_trajectories:
-              type: string
+    ConversationStatusEntry:
+      type: object
+      properties:
+        status:
+          type: string
+    ConversationStatusMap:
+      type: object
+      additionalProperties:
+        oneOf:
+          - $ref: '#/components/schemas/ConversationStatusEntry'
+          - type: 'null'
     ConversationSummary:
       type: object
       required: [id, hasArtifacts, files]
@@ -583,11 +594,6 @@ components:
           type: array
           items:
             type: string
-    CascadeSummary:
-      type: object
-      properties:
-        trajectoryId:
-          type: string
     ErrorResponse:
       type: object
       required: [error]

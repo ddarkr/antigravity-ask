@@ -5,7 +5,6 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { WebSocketServer } from "ws";
 import * as vscode from "vscode";
-import { Models } from "antigravity-sdk";
 import { listConversations, readArtifact } from "./artifacts";
 import { createBridgeServices } from "./bridge-services";
 import {
@@ -19,14 +18,11 @@ export interface BridgeServers {
 }
 
 export const BridgeCommands = {
-  SEND_TEXT_TO_CHAT: "antigravity.sendTextToChat",
-  SEND_PROMPT_TO_AGENT: "antigravity.sendPromptToAgentPanel",
   ACCEPT_AGENT_STEP: "antigravity.agent.acceptAgentStep",
   REJECT_AGENT_STEP: "antigravity.agent.rejectAgentStep",
   TERMINAL_RUN: "antigravity.terminalCommand.run",
   START_NEW_CONVERSATION: "antigravity.startNewConversation",
   FOCUS_AGENT_PANEL: "antigravity.agentPanel.focus",
-  OPEN_AGENT_PANEL: "antigravity.agentPanel.open",
 };
 
 export function createBridgeServer(options: {
@@ -55,46 +51,7 @@ export function createBridgeServer(options: {
     }
   });
 
-  // 2. Send Message to Chat (Direct Command)
-  app.post("/send", async (c) => {
-    let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: "Invalid JSON body" }, 400);
-    }
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return c.json({ error: "Body must be an object" }, 400);
-    }
-    const obj = body as Record<string, unknown>;
-    const text = obj.text;
-    if (typeof text !== "string" || text === "") {
-      return c.json({ error: "text is required and must be a non-empty string" }, 400);
-    }
-
-    try {
-      console.log(`[Bridge] Received HTTP /send request. Text: "${text}"`);
-      const legacySendResult = await services.legacySend.sendPromptToNewConversation(text);
-      console.log(`[Bridge] Command executed successfully without throwing.`);
-      return c.json({
-        success: true,
-        conversation_id: legacySendResult.conversationId,
-        method: "native_api",
-        debug_info: {
-          attempted_command: BridgeCommands.SEND_PROMPT_TO_AGENT,
-          command_exists: legacySendResult.commandExists,
-          polled_trajectories_count: legacySendResult.trajectoriesCount,
-          before_ids_count: legacySendResult.beforeIdsCount,
-          last_trajectories: legacySendResult.lastTrajectoryId,
-        }
-      });
-    } catch (e: any) {
-      console.error("[Bridge] Failed vscode.commands.executeCommand:", e);
-      return c.json({ error: e.message || "Failed to execute command", attempted_command: BridgeCommands.SEND_PROMPT_TO_AGENT, error_dump: String(e) }, 500);
-    }
-  });
-
-  // 3. Actions (New Chat, Run, Allow, etc.)
+  // 2. Actions (New Chat, Run, Allow, etc.)
   app.post("/action", async (c) => {
     let body: unknown;
     try {
@@ -140,7 +97,7 @@ export function createBridgeServer(options: {
     }
   });
 
-  // 4. Read Artifacts API
+  // 3. Read Artifacts API
   app.get("/artifacts", async (c) => {
     try {
       const conversations = listConversations();
@@ -210,7 +167,7 @@ export function createBridgeServer(options: {
     return c.json(results);
   });
 
-  app.post("/chat", async (c) => {
+  app.post("/conversations", async (c) => {
     let body: unknown;
     try {
       body = await c.req.json();
@@ -230,12 +187,12 @@ export function createBridgeServer(options: {
       const jobId = await services.chatQueue.enqueue(text, obj.model as string | undefined);
       return c.json({ success: true, job_id: jobId });
     } catch (e: any) {
-      console.error("[Bridge] POST /chat failed:", e);
+      console.error("[Bridge] POST /conversations failed:", e);
       return c.json({ error: e.message || String(e) }, 500);
     }
   });
 
-  app.get("/chat/:jobId", async (c) => {
+  app.get("/conversations/jobs/:jobId", async (c) => {
     try {
       const jobId = c.req.param("jobId");
       const job = await services.chatQueue.getJob(jobId);
@@ -254,7 +211,15 @@ export function createBridgeServer(options: {
     }
   });
 
-  app.get("/conversation/:id", async (c) => {
+  app.get("/conversations", async (c) => {
+    try {
+      return c.json(await services.conversation.listCascades());
+    } catch (e: any) {
+      return c.json({ error: e.message }, 500);
+    }
+  });
+
+  app.get("/conversations/:id", async (c) => {
     const id = c.req.param("id");
     if (!id || id.trim() === "") {
       return c.json({ error: "id parameter is required" }, 400);
@@ -270,15 +235,7 @@ export function createBridgeServer(options: {
     }
   });
 
-  app.get("/list-cascades", async (c) => {
-    try {
-      return c.json(await services.conversation.listCascades());
-    } catch (e: any) {
-      return c.json({ error: e.message }, 500);
-    }
-  });
-
-  app.post("/focus/:id", async (c) => {
+  app.post("/conversations/:id/focus", async (c) => {
     const id = c.req.param("id");
     if (!id || id.trim() === "") {
       return c.json({ error: "id parameter is required" }, 400);
@@ -291,7 +248,7 @@ export function createBridgeServer(options: {
     }
   });
 
-  app.post("/openchat/:id", async (c) => {
+  app.post("/conversations/:id/open", async (c) => {
     const id = c.req.param("id");
     if (!id || id.trim() === "") {
       return c.json({ error: "id parameter is required" }, 400);

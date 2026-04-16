@@ -2,7 +2,7 @@
 
 `antigravity-ask` is a CLI for controlling the Antigravity Ask Bridge HTTP server from the terminal.
 
-With this CLI, you can send prompts to Antigravity chat, wait for a final response, and inspect conversations or artifacts.
+With this CLI, you can create headless conversations in Antigravity, wait for a final response, and inspect conversations or artifacts.
 
 ## Quick start
 
@@ -34,13 +34,13 @@ Auto-discovery supports single-folder workspaces only. Opening the same folder i
 # Check bridge status
 npx antigravity-ask ping
 
-# Send one request and wait for the final response
+# Create a headless conversation and wait for the final response
 npx antigravity-ask ask "Summarize the current bridge architecture."
 
-# Send asynchronously and inspect later
+# Create a headless conversation asynchronously and inspect it later
 npx antigravity-ask send "Open a new chat and say hello"
 # → returns { "success": true, "job_id": "xxx" }
-# Poll status: GET /chat/:jobId
+# Poll status: GET /conversations/jobs/:jobId
 ```
 
 ## URL overrides
@@ -57,6 +57,7 @@ Examples:
 ```bash
 npx antigravity-ask --url http://127.0.0.1:5820 ping
 npx antigravity-ask --http-port 5820 ping
+npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
 npx antigravity-ask --variant pro send "Review the failing tests"
 AG_BRIDGE_URL=http://127.0.0.1:5820 npx antigravity-ask ping
 ```
@@ -73,6 +74,9 @@ npx antigravity-ask artifacts
 npx antigravity-ask conversation <id>
 npx antigravity-ask artifact <id> <path>
 ```
+
+`ask` creates a headless conversation and waits for the final answer.
+`send` creates a headless conversation and returns a `job_id` so you can poll `GET /conversations/jobs/:jobId` yourself.
 
 Legacy aliases:
 
@@ -98,7 +102,7 @@ Canonical action/path contracts live in `src/contracts/bridge.ts`.
 
 - the CLI canonicalizes `process.cwd()` and looks for a matching live bridge instance
 - if no bridge is found, it opens the current folder with `antigravity --new-window <cwd>`
-- it waits for both `/ping` discovery metadata and `/lsstatus` readiness before sending chat requests
+- it waits for both `/ping` discovery metadata and `/lsstatus` readiness before creating headless conversations
 - same-folder multi-window is unsupported; close duplicates or use `--url`
 
 ## From source

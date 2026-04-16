@@ -1,9 +1,9 @@
 import {
   type BridgeAction,
   BRIDGE_PATHS,
-  type CascadeStatusMap,
-  type SendResponse,
-  type ChatJobResponse,
+  type ConversationCreateResponse,
+  type ConversationJobResponse,
+  type ConversationStatusMap,
 } from "../contracts/bridge";
 import type { ConversationData } from "../contracts/conversation";
 
@@ -17,12 +17,15 @@ export interface BridgeRequestOptions {
 export interface BridgeHttpClient {
   request: <T>(path: string, options?: BridgeRequestOptions) => Promise<T>;
   ping: () => Promise<unknown>;
-  send: (text: string, model?: string | number) => Promise<SendResponse>;
-  sendVisible: (text: string) => Promise<SendResponse>;
-  chat: (text: string, model?: string | number) => Promise<SendResponse>;
-  getJobStatus: (jobId: string) => Promise<ChatJobResponse>;
-  listCascades: () => Promise<CascadeStatusMap>;
+  createConversation: (
+    text: string,
+    model?: string | number,
+  ) => Promise<ConversationCreateResponse>;
+  getConversationJob: (jobId: string) => Promise<ConversationJobResponse>;
+  listConversations: () => Promise<ConversationStatusMap>;
   getConversation: (conversationId: string) => Promise<ConversationData>;
+  focusConversation: (conversationId: string) => Promise<unknown>;
+  openConversation: (conversationId: string) => Promise<unknown>;
   runAction: (type: BridgeAction) => Promise<unknown>;
 }
 
@@ -91,22 +94,25 @@ export function createBridgeHttpClient(baseUrl: string): BridgeHttpClient {
   return {
     request,
     ping: () => request(BRIDGE_PATHS.ping),
-    send: (text, model) => request<SendResponse>(BRIDGE_PATHS.chat, {
-      method: "POST",
-      body: JSON.stringify({ text, model }),
-    }),
-    sendVisible: (text) => request<SendResponse>(BRIDGE_PATHS.visibleSend, {
-      method: "POST",
-      body: JSON.stringify({ text }),
-    }),
-    chat: (text, model) => request<SendResponse>(BRIDGE_PATHS.chat, {
-      method: "POST",
-      body: JSON.stringify({ text, model }),
-    }),
-    getJobStatus: (jobId) => request<ChatJobResponse>(BRIDGE_PATHS.chatJob(jobId)),
-    listCascades: () => request<CascadeStatusMap>(BRIDGE_PATHS.listCascades),
+    createConversation: (text, model) =>
+      request<ConversationCreateResponse>(BRIDGE_PATHS.conversations, {
+        method: "POST",
+        body: JSON.stringify({ text, model }),
+      }),
+    getConversationJob: (jobId) =>
+      request<ConversationJobResponse>(BRIDGE_PATHS.conversationJob(jobId)),
+    listConversations: () =>
+      request<ConversationStatusMap>(BRIDGE_PATHS.conversations),
     getConversation: (conversationId) =>
       request<ConversationData>(BRIDGE_PATHS.conversation(conversationId)),
+    focusConversation: (conversationId) =>
+      request(BRIDGE_PATHS.conversationFocus(conversationId), {
+        method: "POST",
+      }),
+    openConversation: (conversationId) =>
+      request(BRIDGE_PATHS.conversationOpen(conversationId), {
+        method: "POST",
+      }),
     runAction: (type) => request(BRIDGE_PATHS.action, {
       method: "POST",
       body: JSON.stringify({ type }),

@@ -109,30 +109,31 @@ async function withRetry<T>(
 }
 
 /**
- * Sends the user text via the visible-chat endpoint, retrying on
- * MODEL_CAPACITY_EXHAUSTED errors.
+ * Creates a headless conversation, retrying on MODEL_CAPACITY_EXHAUSTED errors.
  */
-async function sendWithRetry(
+async function createConversationWithRetry(
   client: BridgeHttpClient,
   text: string,
   options: AskOptions,
 ): Promise<string> {
   return withRetry(async () => {
-    const sendResult = await client.sendVisible(text);
-    if (!sendResult.success || !sendResult.conversation_id) {
+    const createResult = await client.createConversation(text, options.model);
+    const jobId = createResult.job_id;
+
+    if (!createResult.success || !jobId) {
       throw new Error(
-        "Failed to obtain conversation_id after sending via visible chat.",
+        "Failed to obtain job_id after creating a conversation.",
       );
     }
-    return sendResult.conversation_id;
+
+    return jobId;
   }, options);
 }
 
 /**
- * Polls for conversation completion, retrying on MODEL_CAPACITY_EXHAUSTED
- * errors. Intermediate "not finished yet" states throw with
- * `retryable = false` so the retry loop continues normally without consuming
- * a retry attempt.
+ * Polls the conversation until it is finished and idle. Intermediate "not ready"
+ * states throw with `retryable = false` so the outer polling loop keeps waiting
+ * without consuming retry budget.
  */
 async function pollWithRetry(
   client: BridgeHttpClient,
@@ -148,8 +149,8 @@ async function pollWithRetry(
       throw err;
     }
 
-    const cascades = await client.listCascades();
-    if (!isCascadeIdle(cascades, conversationId)) {
+    const conversations = await client.listConversations();
+    if (!isCascadeIdle(conversations, conversationId)) {
       const err = new Error("cascade not idle") as RetryableError;
       err.retryable = false;
       throw err;
@@ -174,8 +175,7 @@ export async function waitForAskResponse(
     throw new Error("Aborted before starting");
   }
 
-  // Send with retry on MODEL_CAPACITY_EXHAUSTED
-  const conversationId = await sendWithRetry(client, text, options);
+  const jobId = await createConversationWithRetry(client, text, options);
 
   while (true) {
     const remaining = deadline - Date.now();
@@ -185,11 +185,9 @@ export async function waitForAskResponse(
       );
     }
 
-    // Sleep at most the remaining time to avoid overshooting deadline
     const sleepTime = Math.min(pollIntervalMs, remaining);
     await sleep(sleepTime);
 
-    // Check abort signal before polling
     if (options.signal?.aborted) {
       throw new Error("Aborted during polling");
     }
@@ -197,6 +195,19 @@ export async function waitForAskResponse(
     options.onPoll?.();
 
     try {
+      const job = await client.getConversationJob(jobId);
+
+      if (job.status === "failed") {
+        throw new Error(job.error ?? "Conversation job failed");
+      }
+
+      if (!job.conversation_id) {
+        const err = new Error("conversation job not completed") as RetryableError;
+        err.retryable = false;
+        throw err;
+      }
+
+      const conversationId = job.conversation_id;
       const conversation = await pollWithRetry(client, conversationId, options);
 
       return {
@@ -207,7 +218,6 @@ export async function waitForAskResponse(
     } catch (error) {
       options.onPollError?.(error);
 
-      // Non-retryable errors (4xx, 5xx, explicit flags) should abort immediately
       if (isNonRetryableError(error)) {
         throw error;
       }

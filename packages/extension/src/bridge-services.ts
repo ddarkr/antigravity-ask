@@ -14,13 +14,9 @@ import {
   type BridgeDiscoveryStatus,
 } from "antigravity-ask";
 import {
-  collectTrajectoryIds,
   createDiagnosticsSummary,
   delay,
-  findNewConversationId,
   getBridgeDiagnostics,
-  getLastTrajectoryId,
-  getTrajectoryCount,
   type BridgeDiagnostics,
 } from "./server-support";
 
@@ -44,13 +40,6 @@ interface CascadeSummary {
 
 type CascadeMap = Record<string, CascadeSummary>;
 
-export interface LegacySendResult {
-  conversationId: string | null;
-  commandExists: boolean;
-  trajectoriesCount: number;
-  beforeIdsCount: number;
-  lastTrajectoryId: string;
-}
 
 export interface ConversationService {
   createHeadlessConversation(text: string, model?: ModelId): Promise<string | null>;
@@ -92,9 +81,6 @@ export interface MonitoringService {
   getModels(): Promise<unknown>;
 }
 
-export interface LegacySendService {
-  sendPromptToNewConversation(text: string): Promise<LegacySendResult>;
-}
 
 export interface ChatJob {
   id: string;
@@ -118,7 +104,6 @@ export interface BridgeServices {
   conversation: ConversationService;
   actions: ActionService;
   monitoring: MonitoringService;
-  legacySend: LegacySendService;
   chatQueue: ChatQueueService;
 }
 
@@ -465,44 +450,6 @@ class AntigravitySdkMonitoringService implements MonitoringService {
   }
 }
 
-class AntigravitySdkLegacySendService implements LegacySendService {
-  constructor(
-    private readonly executeCommand: CommandExecutor,
-    private readonly monitoring: MonitoringService,
-  ) {}
-
-  async sendPromptToNewConversation(text: string): Promise<LegacySendResult> {
-    const beforeDiagnostics = await this.monitoring.getDiagnostics();
-    const beforeIds = collectTrajectoryIds(beforeDiagnostics);
-
-    await this.executeCommand(AntigravityCommands.START_NEW_CONVERSATION);
-    await delay(1500);
-
-    const commandId = AntigravityCommands.SEND_PROMPT_TO_AGENT;
-    await this.executeCommand(commandId, text);
-
-    let conversationId: string | null = null;
-    let latestDiagnostics = beforeDiagnostics;
-    for (let index = 0; index < 16; index += 1) {
-      await delay(500);
-      latestDiagnostics = await this.monitoring.getDiagnostics();
-      conversationId = findNewConversationId(latestDiagnostics, beforeIds);
-      if (conversationId) {
-        break;
-      }
-    }
-
-    const commandExists = await isCommandAvailable(commandId);
-
-    return {
-      conversationId,
-      commandExists,
-      trajectoriesCount: getTrajectoryCount(latestDiagnostics),
-      beforeIdsCount: beforeIds.size,
-      lastTrajectoryId: getLastTrajectoryId(latestDiagnostics),
-    };
-  }
-}
 
 class AntigravityChatQueueService implements ChatQueueService {
   private jobs = new Map<string, ChatJob>();
@@ -609,7 +556,6 @@ export function createBridgeServices(
     conversation,
     actions: new CommandActionService(executeCommand),
     monitoring,
-    legacySend: new AntigravitySdkLegacySendService(executeCommand, monitoring),
     chatQueue: new AntigravityChatQueueService(conversation),
   };
 }

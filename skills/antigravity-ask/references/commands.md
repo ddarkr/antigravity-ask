@@ -15,22 +15,25 @@ npx antigravity-ask status
 ## One-shot prompt
 
 ```bash
-npx antigravity-ask ask "List the supported bridge actions."
+npx antigravity-ask ask --variant gemini-riftrunner "List the supported bridge actions."
 ```
 
-- Use `ask` when you want one final answer.
+- Use `ask` when you want one final answer from a headless conversation.
+- `ask` creates the conversation via `POST /conversations`, then waits by polling `GET /conversations/jobs/:jobId`.
 - Progress appears on stderr.
 - The extracted final answer appears on stdout when available.
+- `--variant` selects the model for the created headless conversation.
 
 ## Asynchronous prompt
 
 ```bash
-npx antigravity-ask send "Create a new conversation about release notes"
+npx antigravity-ask send --variant gemini-riftrunner "Create a new conversation about release notes"
 ```
 
-- Use `send` when you want a `job_id` for polling.
+- Use `send` when you want the same headless conversation creation flow without waiting for completion.
 - Returns `{ "success": true, "job_id": "xxx" }`
-- Poll job status via `GET /chat/:jobId` to get `conversation_id` when completed.
+- Poll job status via `GET /conversations/jobs/:jobId` to get `conversation_id` when completed.
+- `--variant` is supported here too.
 
 ## Conversation inspection
 
@@ -39,6 +42,7 @@ npx antigravity-ask conversation <conversation_id>
 ```
 
 - Returns the full conversation payload as JSON.
+- The corresponding HTTP reads are `GET /conversations` and `GET /conversations/:id`.
 
 ## Artifact inspection
 

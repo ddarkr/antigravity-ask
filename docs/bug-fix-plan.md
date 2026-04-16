@@ -499,7 +499,7 @@ export interface LegacySendResponse {
 }
 ```
 
-`http.ts`의 `send`/`chat` 메서드 반환 타입 분리.
+`http.ts`의 `createConversation`/`getConversationJob` 계약으로 분리.
 
 ### 3-7. AG_BRIDGE_URL readiness 검증 복원
 **파일**: `packages/cli/src/bridge-resolver.ts`
@@ -550,11 +550,11 @@ function requireString(body: unknown, field: string): string {
 }
 ```
 
-### 4-2. POST /send 입력 검증
-**파일**: `packages/extension/src/server.ts:56-85`
+### 4-2. POST /conversations 입력 검증
+**파일**: `packages/extension/src/server.ts:170-191`
 
 ```typescript
-app.post("/send", async (c) => {
+app.post("/conversations", async (c) => {
   try {
     let body: unknown;
     try {
@@ -601,16 +601,16 @@ if (!isBridgeAction(type)) {
 }
 ```
 
-### 4-4. POST /chat 입력 검증
-**파일**: `packages/extension/src/server.ts:182-195`
+### 4-4. GET /conversations/jobs/:jobId 상태 조회 검증
+**파일**: `packages/extension/src/server.ts:195-212`
 
-동일 패턴 적용.
+비동기 headless conversation 상태 조회는 `/conversations/jobs/:jobId`에서 처리한다.
 
-### 4-5. GET /conversation/:id 404 처리
-**파일**: `packages/extension/src/server.ts:218-225`
+### 4-5. GET /conversations/:id 404 처리
+**파일**: `packages/extension/src/server.ts:222-235`
 
 ```typescript
-app.get("/conversation/:id", async (c) => {
+app.get("/conversations/:id", async (c) => {
   try {
     const id = c.req.param("id");
     if (!id || id.trim() === "") {
@@ -838,7 +838,7 @@ npx antigravity-ask ask "test"
 # (타임아웃 동작 확인)
 
 # Phase 4
-curl -X POST http://localhost:5820/send -H "Content-Type: application/json" -d '{}'
+curl -X POST http://localhost:5820/conversations -H "Content-Type: application/json" -d '{}'
 # {"error": "text is required..."} 400 응답 확인
 
 # 전구간

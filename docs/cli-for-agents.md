@@ -18,7 +18,7 @@ npx skills add ddarkr/antigravity-ask --skill antigravity-ask -a antigravity -y
 
 Use it when you want to:
 
-- send a prompt into Antigravity chat
+- create a headless conversation
 - wait for a reply from the agent
 - inspect a conversation by id
 - read stored artifact files
@@ -85,7 +85,7 @@ If you need asynchronous control:
 ```bash
 npx antigravity-ask send "Open a new chat and say hello"
 # → returns { "success": true, "job_id": "xxx" }
-# Poll status: GET /chat/:jobId
+# Poll status: GET /conversations/jobs/:jobId
 ```
 
 ## Commands
@@ -108,7 +108,7 @@ npx antigravity-ask status
 
 ### `ask <text>`
 
-Sends a prompt and waits until the bridge decides the conversation is finished.
+Sends a prompt by creating a headless conversation and waits until the bridge decides the conversation is finished.
 
 ```bash
 npx antigravity-ask ask "List the supported bridge actions."
@@ -120,12 +120,12 @@ Behavior:
 - prints the final extracted text response to stdout when available
 - falls back to printing the last step as JSON when a plain text reply cannot be extracted
 
-Use `ask` when you want a single final answer.
+Use `ask` when you want a single final answer from a headless conversation.
 
 
 ### `send <text>`
 
-Starts a headless prompt without waiting for completion.
+Creates a headless conversation without waiting for completion.
 
 ```bash
 npx antigravity-ask send "Create a new conversation about release notes"
@@ -133,7 +133,7 @@ npx antigravity-ask send "Create a new conversation about release notes"
 
 Expected output: JSON to stdout with `job_id` for polling.
 
-Use `send` when you want to poll job status yourself via `GET /chat/:jobId`.
+Use `send` when you want to poll job status yourself via `GET /conversations/jobs/:jobId`.
 
 ### `conversation <id>`
 
@@ -215,6 +215,8 @@ Supported variants:
 
 If `--variant` is omitted, the bridge keeps its default model behavior.
 
+Both `ask` and `send` accept `--variant`; use `ask` when you want the final answer immediately, and `send` when you want to keep the returned `job_id` and inspect the conversation yourself.
+
 Examples:
 
 ```bash
@@ -227,8 +229,8 @@ npx antigravity-ask --variant pro send "Create a release summary"
 If you need a model that is not covered by the built-in variant aliases, use the bridge HTTP API:
 
 ```bash
-# Send request (returns job_id)
-curl -X POST http://localhost:5820/chat \
+# Create headless conversation (returns job_id)
+curl -X POST http://localhost:5820/conversations \
   -H 'Content-Type: application/json' \
   -d '{
     "text": "Summarize the current bridge architecture.",
@@ -236,15 +238,15 @@ curl -X POST http://localhost:5820/chat \
   }'
 
 # Poll job status
-curl http://localhost:5820/chat/<job_id>
+curl http://localhost:5820/conversations/jobs/<job_id>
 ```
 
 Notes:
 
-- `/chat` accepts `text` and an optional `model`
-- when `model` is omitted, the server defaults to `Models.GEMINI_FLASH`
+- `POST /conversations` accepts `text` and an optional `model`
+- when `model` is omitted, the server keeps its default model behavior
 - model IDs use protobuf enum strings (e.g., `MODEL_GOOGLE_GEMINI_RIFTRUNNER`)
-- `/chat/:jobId` returns job status and `conversation_id` when completed
+- `GET /conversations/jobs/:jobId` returns job status and `conversation_id` when completed
 
 ## Output Rules
 

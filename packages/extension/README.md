@@ -76,11 +76,13 @@ The local bridge exposes endpoints including:
 
 - `GET /ping`
 - `GET /lsstatus`
-- `POST /send`
-- `POST /chat`
+- `POST /conversations`
+- `GET /conversations/jobs/:jobId`
+- `GET /conversations`
+- `GET /conversations/:id`
+- `POST /conversations/:id/focus`
+- `POST /conversations/:id/open`
 - `POST /action`
-- `GET /conversation/:id`
-- `GET /list-cascades`
 - `GET /artifacts`
 
 For a structured API reference, see <https://github.com/ddarkr/antigravity-ask/blob/main/docs/extension-api.openapi.yaml>.

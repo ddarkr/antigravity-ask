@@ -6,13 +6,13 @@ The most convenient way to control Antigravity is to enable the bridge extension
 # 1) Check that the bridge is running
 npx antigravity-ask ping
 
-# 2) Send one request and wait for the final response
+# 2) Create a headless conversation and wait for the final response
 npx antigravity-ask ask "Summarize the current bridge architecture."
 
-# 3) Send asynchronously, get a job_id, and check status later
+# 3) Create a headless conversation asynchronously, get a job_id, and check status later
 npx antigravity-ask send "Open a new chat and say hello"
 # → returns { "success": true, "job_id": "xxx" }
-# Poll status: GET /chat/:jobId
+# Poll status: GET /conversations/jobs/:jobId
 ```
 
 - Override options: `--url`, `--http-port`, `AG_BRIDGE_URL`
@@ -20,7 +20,7 @@ npx antigravity-ask send "Open a new chat and say hello"
 - Auto-discovery currently supports single-folder workspaces only. Opening the same folder in multiple windows is unsupported.
 - Detailed guide for coding agents: `docs/cli-for-agents.md`
 
-This project runs a bridge server inside Antigravity IDE so external CLIs and other agents can send prompts, inspect conversation state, and read saved artifacts.
+This project runs a bridge server inside Antigravity IDE so external CLIs and other agents can create headless conversations, inspect conversation state, and read saved artifacts.
 
 ## Quick start
 

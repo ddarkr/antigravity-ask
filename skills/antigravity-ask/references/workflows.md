@@ -16,17 +16,17 @@ If this fails:
 
 ```bash
 npx antigravity-ask ping
-npx antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask ask --variant gemini-riftrunner "Summarize the current bridge architecture."
 ```
 
-Use this when you only need the final answer and do not care about intermediate conversation state.
+Use this when you need the final answer from a headless conversation and want the CLI to wait for completion.
 
 ## Workflow 3: Drive a conversation asynchronously
 
 ```bash
-npx antigravity-ask send "Open a new chat and say hello"
+npx antigravity-ask send --variant gemini-riftrunner "Open a new chat and say hello"
 # → returns { "success": true, "job_id": "xxx" }
-# Poll job status: GET /chat/:jobId
+# Poll job status: GET /conversations/jobs/:jobId
 # When completed, get conversation_id and inspect:
 npx antigravity-ask conversation <conversation_id>
 ```
@@ -42,22 +42,26 @@ npx antigravity-ask artifact <conversation_id> output.md
 
 Use this when the Antigravity run wrote useful output files and you need the raw contents.
 
-## Workflow 5: Use the HTTP API for explicit model control
+## Workflow 5: Use the HTTP API directly
 
 ```bash
-# Send request (returns job_id)
-curl -X POST http://localhost:5820/chat \
+# Create a headless conversation (returns job_id)
+curl -X POST http://localhost:5820/conversations \
   -H 'Content-Type: application/json' \
   -d '{
-    "text": "Summarize the current bridge architecture.",
+    "prompt": "Summarize the current bridge architecture.",
     "model": "MODEL_GOOGLE_GEMINI_RIFTRUNNER"
   }'
 
 # Poll job status
-curl http://localhost:5820/chat/<job_id>
+curl http://localhost:5820/conversations/jobs/<job_id>
+
+# Inspect conversations
+curl http://localhost:5820/conversations
+curl http://localhost:5820/conversations/<conversation_id>
 ```
 
-Use the HTTP API instead of the CLI shortcut when you need lower-level control such as explicit `model` selection with protobuf enum strings.
+Use the HTTP API when you need direct integration with the canonical conversation endpoints.
 
 ## Workflow 6: Trigger bridge actions
 
