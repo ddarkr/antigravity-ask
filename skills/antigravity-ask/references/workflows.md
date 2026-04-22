@@ -2,73 +2,80 @@
 
 ## Workflow 1: Verify the bridge before doing anything else
 
+Always start with a connectivity check to avoid wasted time on broken links.
+
 ```bash
 npx antigravity-ask ping
 ```
 
 If this fails:
+- Confirm the VS Code Extension Host is running.
+- Confirm the Bridge server started correctly (check VS Code status bar for "⚡ Bridge: Ready").
+- Retry with `--url` or `--http-port` if you've customized the startup.
 
-- confirm the extension host is running
-- confirm the bridge is enabled
-- retry with `--url`, `--http-port`, or `AG_BRIDGE_URL`
+## Workflow 2: Get a complete answer synchronously
 
-## Workflow 2: Get one final answer
+Use this when you want to block until the task is done and just get the text result.
 
 ```bash
-npx antigravity-ask ping
-npx antigravity-ask ask --variant gemini-riftrunner "Summarize the current bridge architecture."
+npx antigravity-ask ask --variant flash "Analyze the current error logs and suggest a fix."
 ```
 
-Use this when you need the final answer from a headless conversation and want the CLI to wait for completion.
+- **Stderr**: Shows real-time polling status.
+- **Stdout**: Contains only the agent's final text response.
 
-## Workflow 3: Drive a conversation asynchronously
+## Workflow 3: Trigger a task and monitor progress
+
+Use this for long-running tasks where you want to inspect the intermediate steps or multiple output artifacts.
 
 ```bash
-npx antigravity-ask send --variant gemini-riftrunner "Open a new chat and say hello"
-# → returns { "success": true, "job_id": "xxx" }
-# Poll job status: GET /conversations/jobs/:jobId
-# When completed, get conversation_id and inspect:
-npx antigravity-ask conversation <conversation_id>
+# 1. Start the task
+npx antigravity-ask send --variant pro "Refactor the authentication module"
+# → returns { "success": true, "job_id": "JOB_123" }
+
+# 2. Monitor job status (e.g., via curl or custom script)
+# GET /conversations/jobs/JOB_123
+
+# 3. Once completed, inspect the full trajectory
+npx antigravity-ask conversation <convo_id>
 ```
 
-Use this when you want the raw conversation payload or need to inspect the trajectory yourself.
+## Workflow 4: Extract results from artifacts
 
-## Workflow 4: Read artifacts after a run
+If the agent's task involves creating files or reports (artifacts), use the artifact commands to read them back.
 
 ```bash
+# List all conversations and their artifact counts
 npx antigravity-ask artifacts
-npx antigravity-ask artifact <conversation_id> output.md
+
+# Read a specific output file
+npx antigravity-ask artifact <convo_id> plan.md
 ```
 
-Use this when the Antigravity run wrote useful output files and you need the raw contents.
+## Workflow 5: Control the IDE Chat UI
 
-## Workflow 5: Use the HTTP API directly
-
-```bash
-# Create a headless conversation (returns job_id)
-curl -X POST http://localhost:5820/conversations \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "prompt": "Summarize the current bridge architecture.",
-    "model": "MODEL_GOOGLE_GEMINI_RIFTRUNNER"
-  }'
-
-# Poll job status
-curl http://localhost:5820/conversations/jobs/<job_id>
-
-# Inspect conversations
-curl http://localhost:5820/conversations
-curl http://localhost:5820/conversations/<conversation_id>
-```
-
-Use the HTTP API when you need direct integration with the canonical conversation endpoints.
-
-## Workflow 6: Trigger bridge actions
+Use the `action` commands to manipulate the active chat session in VS Code.
 
 ```bash
-npx antigravity-ask action start_new_chat
+# Fresh start
+npx antigravity-ask new-chat
+
+# Focus the panel for the user
 npx antigravity-ask action focus_chat
+
+# Automate multi-step confirmations
 npx antigravity-ask action allow
 ```
 
-Use action commands when you need to manipulate the Antigravity UI or accept/reject bridge-controlled actions.
+## Workflow 6: Low-level HTTP Integration
+
+If the CLI doesn't support a specific endpoint yet, use `curl` against the bridge port.
+
+```bash
+# List all active models
+curl http://localhost:5820/models
+
+# Fetch recent diagnostics
+curl http://localhost:5820/dump-ls
+```
+
