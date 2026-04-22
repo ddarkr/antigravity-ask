@@ -37,6 +37,16 @@ interface RetryableError extends Error {
   retryable: boolean;
 }
 
+function createIntermediateStateError(message: string): RetryableError {
+  const error = new Error(message) as RetryableError;
+  error.retryable = false;
+  return error;
+}
+
+function isIntermediateStateError(error: unknown): boolean {
+  return (error as RetryableError).retryable === false;
+}
+
 /**
  * Checks whether an HTTP error message contains a MODEL_CAPACITY_EXHAUSTED
  * error. This is a transient backend error that should be retried.
@@ -144,16 +154,12 @@ async function pollWithRetry(
     const conversation = await client.getConversation(conversationId);
 
     if (!isConversationFinished(conversation)) {
-      const err = new Error("conversation not finished") as RetryableError;
-      err.retryable = false;
-      throw err;
+      throw createIntermediateStateError("conversation not finished");
     }
 
     const conversations = await client.listConversations();
     if (!isCascadeIdle(conversations, conversationId)) {
-      const err = new Error("cascade not idle") as RetryableError;
-      err.retryable = false;
-      throw err;
+      throw createIntermediateStateError("cascade not idle");
     }
 
     return conversation;
@@ -202,9 +208,7 @@ export async function waitForAskResponse(
       }
 
       if (!job.conversation_id) {
-        const err = new Error("conversation job not completed") as RetryableError;
-        err.retryable = false;
-        throw err;
+        throw createIntermediateStateError("conversation job not completed");
       }
 
       const conversationId = job.conversation_id;
@@ -216,7 +220,9 @@ export async function waitForAskResponse(
         text: extractConversationText(conversation),
       };
     } catch (error) {
-      options.onPollError?.(error);
+      if (!isIntermediateStateError(error)) {
+        options.onPollError?.(error);
+      }
 
       if (isNonRetryableError(error)) {
         throw error;

@@ -12,7 +12,7 @@ describe("waitForAskResponse", () => {
       createConversation,
       getConversationJob: vi.fn(async () => ({
         id: "job-1",
-        status: "completed",
+        status: "completed" as const,
         conversation_id: "convo-1",
       })),
       getConversation: vi.fn(async () => ({
@@ -43,6 +43,7 @@ describe("waitForAskResponse", () => {
   });
 
   it("keeps polling until the conversation becomes finished", async () => {
+    const onPollError = vi.fn();
     const createConversation = vi.fn(async () => ({
       success: true,
       job_id: "job-1",
@@ -89,12 +90,14 @@ describe("waitForAskResponse", () => {
     const result = await waitForAskResponse(client, "hello", {
       pollIntervalMs: 1,
       sleep: async () => {},
+      onPollError,
     });
 
     expect(createConversation).toHaveBeenCalledTimes(1);
     expect(getConversationJob).toHaveBeenCalledTimes(4);
     expect(getConversation).toHaveBeenCalledTimes(3);
     expect(listConversations).toHaveBeenCalledTimes(2);
+    expect(onPollError).not.toHaveBeenCalled();
     expect(result.text).toBe("ready");
   });
 
@@ -104,7 +107,7 @@ describe("waitForAskResponse", () => {
       createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
       getConversationJob: vi.fn(async () => ({
         id: "job-1",
-        status: "completed",
+        status: "completed" as const,
         conversation_id: "convo-1",
       })),
       getConversation: vi
@@ -137,7 +140,7 @@ describe("waitForAskResponse", () => {
       createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
       getConversationJob: vi.fn(async () => ({
         id: "job-1",
-        status: "completed",
+        status: "completed" as const,
         conversation_id: "convo-1",
       })),
       getConversation: vi.fn(async () => ({
@@ -174,7 +177,7 @@ describe("waitForAskResponse", () => {
       createConversation,
       getConversationJob: vi.fn(async () => ({
         id: "job-1",
-        status: "completed",
+        status: "completed" as const,
         conversation_id: "convo-1",
       })),
       getConversation: vi.fn(async () => ({
@@ -258,7 +261,7 @@ describe("waitForAskResponse", () => {
       createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
       getConversationJob: vi.fn(async () => ({
         id: "job-1",
-        status: "completed",
+        status: "completed" as const,
         conversation_id: "convo-1",
       })),
       getConversation: vi.fn(async () => ({ trajectory: { steps: [{ type: "CORTEX_STEP_TYPE_USER_INPUT" }] } })),
@@ -282,7 +285,7 @@ function createClient(overrides: Partial<BridgeHttpClient>): BridgeHttpClient {
     createConversation: vi.fn(async () => ({ success: true, job_id: "job-1" })),
     getConversationJob: vi.fn(async () => ({
       id: "job-1",
-      status: "completed",
+      status: "completed" as const,
       conversation_id: "convo-1",
     })),
     listConversations: vi.fn(async () => ({ "convo-1": { status: "CASCADE_RUN_STATUS_IDLE" } })),
