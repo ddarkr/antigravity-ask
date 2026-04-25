@@ -51,7 +51,7 @@ Antigravity Ask Bridge CLI
 Global Options:
   --url <baseUrl>                        Override the full bridge base URL
   --http-port <port>                    Override the bridge HTTP port on localhost
-  --variant <name>                      Select model variant (${Object.keys(MODEL_VARIANTS).join(", ")})
+  --variant <name>                      Accepted for compatibility; uses Antigravity's default model (${Object.keys(MODEL_VARIANTS).join(", ")})
 
 Commands:
   ask <text>                             Create a headless conversation and wait until the agent finishes to print the response
