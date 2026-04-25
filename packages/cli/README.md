@@ -57,8 +57,8 @@ Examples:
 ```bash
 npx antigravity-ask --url http://127.0.0.1:5820 ping
 npx antigravity-ask --http-port 5820 ping
-npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
-npx antigravity-ask --variant pro send "Review the failing tests"
+npx antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask send "Review the failing tests"
 AG_BRIDGE_URL=http://127.0.0.1:5820 npx antigravity-ask ping
 ```
 

@@ -200,11 +200,11 @@ Legacy alias:
 npx antigravity-ask new-chat
 ```
 
-## Model Variants
+## Model Selection
 
-The CLI supports simple model selection through `--variant <name>` for `ask` and `send`.
+The CLI intentionally lets Antigravity choose the current default/UI-selected model for `ask` and `send`.
 
-Supported variants:
+Legacy variants are accepted for compatibility:
 
 - `flash` → Gemini Flash
 - `pro` → Gemini Pro high
@@ -213,28 +213,27 @@ Supported variants:
 - `opus` → Claude Opus
 - `gpt-oss` → GPT-OSS
 
-If `--variant` is omitted, the bridge keeps its default model behavior.
+Whether `--variant` is omitted or provided, the bridge keeps its default model behavior and does not send old hard-coded model IDs.
 
-Both `ask` and `send` accept `--variant`; use `ask` when you want the final answer immediately, and `send` when you want to keep the returned `job_id` and inspect the conversation yourself.
+Use `ask` when you want the final answer immediately, and `send` when you want to keep the returned `job_id` and inspect the conversation yourself.
 
 Examples:
 
 ```bash
-npx antigravity-ask --variant flash ask "Summarize the current bridge architecture."
-npx antigravity-ask --variant pro send "Create a release summary"
+npx antigravity-ask ask "Summarize the current bridge architecture."
+npx antigravity-ask send "Create a release summary"
 ```
 
-## Advanced: Headless Chat With Explicit Model IDs
+## Advanced: Headless Chat Request Body
 
-If you need a model that is not covered by the built-in variant aliases, use the bridge HTTP API:
+Use the bridge HTTP API directly only when you need lower-level integration. Omit `model` to let Antigravity choose its default model:
 
 ```bash
 # Create headless conversation (returns job_id)
 curl -X POST http://localhost:5820/conversations \
   -H 'Content-Type: application/json' \
   -d '{
-    "text": "Summarize the current bridge architecture.",
-    "model": "MODEL_GOOGLE_GEMINI_RIFTRUNNER"
+    "text": "Summarize the current bridge architecture."
   }'
 
 # Poll job status

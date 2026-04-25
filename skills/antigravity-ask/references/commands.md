@@ -15,19 +15,19 @@ npx antigravity-ask status # alias
 ## One-shot prompt
 
 ```bash
-npx antigravity-ask ask --variant flash "List the supported bridge actions."
+npx antigravity-ask ask "List the supported bridge actions."
 ```
 
 - Use `ask` when you want one final answer from a headless conversation.
 - `ask` creates the conversation via `POST /conversations`, then waits by polling `GET /conversations/jobs/:jobId`.
 - **Progress** appears on stderr (e.g., "." characters during polling).
 - **Final answer** appears on stdout when the agent finishes generating.
-- `--variant` selects the model for the created headless conversation. Supported: `flash`, `pro`, `pro-low`, `sonnet`, `opus`, `gpt-oss`.
+- `ask` uses Antigravity's current default/UI-selected model. Legacy `--variant` values are accepted for compatibility but do not force old model IDs.
 
 ## Asynchronous prompt
 
 ```bash
-npx antigravity-ask send --variant flash "Create a new conversation about release notes"
+npx antigravity-ask send "Create a new conversation about release notes"
 ```
 
 - Use `send` when you want to initiate a headless conversation without waiting for the CLI to finish.
@@ -83,4 +83,3 @@ For local development where you haven't linked the package yet:
 ```bash
 node packages/cli/dist/cli.js --help
 ```
-
