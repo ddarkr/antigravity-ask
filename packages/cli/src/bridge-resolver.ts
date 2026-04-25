@@ -52,31 +52,8 @@ export async function resolveBridgeBaseUrl(
   options: ResolveBridgeBaseUrlOptions,
 ): Promise<ResolvedBridgeTarget> {
   const workspacePath = canonicalizeWorkspacePath(options.cwd);
-  async function pingBridge(baseUrl: string): Promise<BridgePingResponse | null> {
-  try {
-    const response = await fetch(`${baseUrl}/ping`);
-    if (!response.ok) {
-      return null;
-    }
-    return response.json() as Promise<BridgePingResponse>;
-  } catch {
-    return null;
-  }
-}
 
-async function getBridgeStatus(baseUrl: string): Promise<BridgeDiscoveryStatus | null> {
-  try {
-    const response = await fetch(`${baseUrl}/lsstatus`);
-    if (!response.ok) {
-      return null;
-    }
-    return response.json() as Promise<BridgeDiscoveryStatus>;
-  } catch {
-    return null;
-  }
-}
-
-if (options.explicitBaseUrl) {
+  if (options.explicitBaseUrl) {
     return {
       baseUrl: options.explicitBaseUrl,
       launchedWorkspace: false,
