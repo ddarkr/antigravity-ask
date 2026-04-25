@@ -1,7 +1,6 @@
 import {
   AntigravityCommands,
   AntigravitySDK,
-  Models,
   type ModelId,
 } from "antigravity-sdk";
 import { execFile } from "node:child_process";
@@ -244,14 +243,18 @@ class AntigravitySdkConversationService implements ConversationService {
           throw new Error("StartCascade did not return cascadeId");
         }
 
+        const plannerConfig = model === undefined
+          ? { plannerTypeConfig: { conversational: {} } }
+          : {
+            plannerTypeConfig: { conversational: {} },
+            requestedModel: { model },
+          };
+
         await withTimeout(sdk.ls.rawRPC("SendUserCascadeMessage", {
           cascadeId,
           items: [{ chunk: { text } }],
           cascadeConfig: {
-            plannerConfig: {
-              plannerTypeConfig: { conversational: {} },
-              requestedModel: { model: model ?? Models.GEMINI_FLASH },
-            },
+            plannerConfig,
           },
         }), 30_000, "SendUserCascadeMessage");
 
@@ -430,15 +433,14 @@ class AntigravitySdkMonitoringService implements MonitoringService {
     };
 
     try {
-      let lastError: Error | null = null;
       if (candidates.length > 0) {
         for (const connection of candidates) {
           sdk.ls.setConnection(connection.port, connection.csrfToken, connection.useTls);
           try {
             const models = await withTimeout(sdk.ls.rawRPC("GetCascadeModelConfigs", { metadata: {}, filter: true }), 15_000, "GetCascadeModelConfigs");
             return { debug: debugInfo, models: models ?? null };
-          } catch (error) {
-            lastError = toError(error);
+          } catch {
+            continue;
           }
         }
       }
@@ -558,13 +560,6 @@ export function createBridgeServices(
     monitoring,
     chatQueue: new AntigravityChatQueueService(conversation),
   };
-}
-
-async function isCommandAvailable(
-  command: string,
-): Promise<boolean> {
-  const commands = await vscode.commands.getCommands(true);
-  return commands.includes(command);
 }
 
 function toError(error: unknown): Error {
